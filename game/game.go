@@ -3,6 +3,7 @@ package game;
 import (
 	"time"
 
+	"slices"
 	"errors"
 
 	"math/big"
@@ -31,8 +32,8 @@ const (
 	EVENT_GAME_WAITING = "GameWaiting";
 	EVENT_GAME_RUNNING = "GameRunning";
 	EVENT_GAME_CRASHED = "GameCrashed";
-	EVENT_USER_WON     = "UserWon";
-	EVENT_USER_LOST    = "UserLost"
+	EVENT_PLAYER_WON   = "PlayerWon";
+	EVENT_PLAYER_LOST  = "PlayerLost";
 );
 
 type CashOut struct {
@@ -68,6 +69,7 @@ type Game struct {
 	db *sql.DB;
 	startTime time.Time;
 	endTime time.Time;
+	duration time.Duration;
 };
 
 func NewGame(io *socket.Server, db *sql.DB) (Game, error) {
@@ -87,7 +89,7 @@ func NewGame(io *socket.Server, db *sql.DB) (Game, error) {
 }
 
 func (game *Game) createNewGame() {
-	randInt, err := rand.Int(rand.Reader, big.NewInt(60));
+	randInt, err := rand.Int(rand.Reader, big.NewInt(10));
 
 	if err != nil {
 		return;
@@ -101,12 +103,14 @@ func (game *Game) createNewGame() {
 
 	game.id = gameId;
 	game.state = GAMESTATE_WAITING;
-	time.AfterFunc(time.Second * WAIT_TIME_SECS, game.handleGameStart);
-	game.startTime = time.Now().Add(time.Second * WAIT_TIME_SECS);
 
-	endTime := time.Duration(time.Second * time.Duration(randInt.Int64()));
-	time.AfterFunc(endTime, game.handleGameCrash);
-	game.endTime = time.Now().Add(endTime);
+	untilStart := time.Second * WAIT_TIME_SECS;
+	game.startTime = time.Now().Add(untilStart);
+	game.duration = time.Duration(time.Second * time.Duration(randInt.Int64()));
+	game.endTime = game.startTime.Add(game.duration);
+
+	time.AfterFunc(untilStart, game.handleGameStart);
+	time.AfterFunc(untilStart + game.duration, game.handleGameCrash);
 
 	slog.Info(
 		"Created new game",
@@ -118,11 +122,9 @@ func (game *Game) createNewGame() {
 		game.endTime,
 	);
 
-	for _, observer := range game.observers {
-		observer.socket.Emit(EVENT_GAME_WAITING, map[string]any{
-			"startTime": game.startTime.Unix(),
-		});
-	}
+	game.Emit(EVENT_GAME_WAITING, map[string]any{
+		"startTime": game.startTime.Unix(),
+	});
 }
 
 func (game *Game) handleGameStart() {
@@ -134,11 +136,11 @@ func (game *Game) handleGameStart() {
 		return;
 	}
 
-	slog.Info("Starting game...");
+	slog.Info("Starting game...", "game", game.id, "duration", game.duration);
 
 	game.state = GAMESTATE_RUNNING;
 
-	game.io.Emit(EVENT_GAME_RUNNING, map[string]any{
+	game.Emit(EVENT_GAME_RUNNING, map[string]any{
 		"startTime": game.startTime.Unix(),
 	});
 }
@@ -149,11 +151,9 @@ func (game *Game) handleGameCrash() {
 	game.state = GAMESTATE_CRASHED;
 
 	for i := range(game.players) {
-		observer, found := game.observers[game.players[i].clientId];
-
-		if found {
-			observer.socket.Emit(EVENT_USER_LOST);
-		}
+		game.Emit(EVENT_PLAYER_LOST, map[string]any{
+			"wallet": game.players[i].wallet,
+		});
 	}
 
 	slog.Info("Entering game wait state...");
@@ -164,7 +164,7 @@ func (game *Game) handleGameCrash() {
 
 	game.createNewGame();
 
-	game.io.Emit(EVENT_GAME_CRASHED);
+	game.Emit(EVENT_GAME_CRASHED);
 }
 
 func (game *Game) HandlePlaceBet(client *socket.Socket) error {
@@ -239,4 +239,14 @@ func (game *Game) HandleDisconnect(client *socket.Socket) {
 	}
 
 	delete(game.observers, client.Id());
+}
+
+/**
+ * Temporary hack until I can figure out why io.Emit()
+ * isn't working.
+ */
+func (game *Game) Emit(ev string, params ...any) {
+	for _, observer := range game.observers {
+		observer.socket.Emit(ev, params...);
+	}
 }
