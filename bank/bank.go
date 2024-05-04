@@ -25,10 +25,10 @@ func (bank *Bank) DecreaseBalance(
 
 	result, err := bank.db.Exec(`
 		UPDATE balances
-		SET balance = balance - ?
+		SET spent = spent + ?
 		WHERE wallet = ?
 		AND currency = ?
-		AND (balance - ?) >= 0
+		AND (balance - spent - ?) >= 0
 	`, amountStr, wallet, currency, amountStr);
 
 	if err != nil {
@@ -51,7 +51,7 @@ func (bank *Bank) IncreaseBalance(
 
 	result, err := bank.db.Exec(`
 		UPDATE balances
-		SET balance = balance + ?
+		SET gained = gained + ?
 		WHERE wallet = ?
 		AND currency = ?
 	`, amountStr, wallet, currency);
@@ -74,7 +74,8 @@ func (bank *Bank) GetBalance(
 	var balanceStr string;
 
 	rows, err := bank.db.Query(`
-		SELECT balance FROM balances
+		SELECT balance + gained - spent AS balance
+		FROM balances
 		WHERE wallet = ?
 		AND currency = ?
 		LIMIT 1
