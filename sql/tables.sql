@@ -36,6 +36,8 @@ CREATE TABLE `ledger` (
 	`id` bigint PRIMARY KEY NOT NULL AUTO_INCREMENT,
 	`wallet` char(42) NOT NULL,
 	`currency` varchar(32) NOT NULL,
-	`balance` Decimal(32, 18) NOT NULL,
+	`change` Decimal(32, 18) NOT NULL,
+	`betId` uuid NOT NULL,
+	FOREIGN KEY(`betId`) REFERENCES `bets`(`id`),
 	FOREIGN KEY(`wallet`) REFERENCES `users`(`wallet`)
 );
