@@ -101,17 +101,7 @@ func validateAuthenticateParams(result *AuthParams, data ...any) (func([]any, er
 		signature: signature,
 	};
 
-	if len(data) != 2 {
-		return nil, nil;
-	}
-
-	callback, ok := data[1].(func([]any, error));
-
-	if !ok {
-		// Ought to be an error, but we'll treat it
-		// as if there were no callback supplied
-		return nil, nil;
-	}
+	callback := extractCallback(1, data...);
 
 	return callback, nil;
 }
@@ -152,19 +142,25 @@ func validatePlaceBetParams(result *PlaceBetParams, data ...any) (func([]any, er
 		currency: currency,
 	};
 
-	if len(data) != 2 {
-		return nil, nil;
+	callback := extractCallback(1, data...);
+
+	return callback, nil;
+}
+
+func extractCallback(index int, data ...any) func([]any, error) {
+	if len(data) != index + 1 {
+		return nil;
 	}
 
-	callback, ok := data[1].(func([]any, error));
+	callback, ok := data[index].(func([]any, error));
 
 	if !ok {
 		// Ought to be an error, but we'll treat it
 		// as if there were no callback supplied
-		return nil, nil;
+		return nil;
 	}
 
-	return callback, nil;
+	return callback;
 }
 
 func main() {
@@ -322,13 +318,9 @@ func main() {
 
 			err := gameObj.HandleCancelBet(session.wallet);
 
-			if len(data) == 0 {
-				return;
-			}
+			callback := extractCallback(0, data...);
 
-			callback, ok := data[0].(func([]any, error));
-
-			if ok && callback != nil {
+			if callback != nil {
 				callback(
 					[]any{ map[string]any{
 						"success": err == nil,
