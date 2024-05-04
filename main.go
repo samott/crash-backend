@@ -54,8 +54,6 @@ func validateToken(token string, session *Session) error {
 func authenticateUser(payload string, signature string) (string, error) {
 	message, err := siwe.ParseMessage(payload);
 
-	slog.Warn("MSG", "payload", payload, "sig", signature);
-
 	if err != nil {
 		return "", err;
 	}
