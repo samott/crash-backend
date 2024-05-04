@@ -10,13 +10,13 @@ type Bank struct {
 	db *sql.DB;
 };
 
-func NewBank(db *sql.DB) (Bank, error) {
-	return Bank{
+func NewBank(db *sql.DB) (*Bank, error) {
+	return &Bank{
 		db: db,
 	}, nil;
 }
 
-func (bank *Bank) reduceBalance(
+func (bank *Bank) DecreaseBalance(
 	wallet string,
 	currency string,
 	amount decimal.Decimal,
@@ -39,10 +39,10 @@ func (bank *Bank) reduceBalance(
 		return decimal.Zero, errors.New("Unable to reduce balance");
 	}
 
-	return bank.getBalance(wallet, currency);
+	return bank.GetBalance(wallet, currency);
 }
 
-func (bank *Bank) increaseBalance(
+func (bank *Bank) IncreaseBalance(
 	wallet string,
 	currency string,
 	amount decimal.Decimal,
@@ -64,10 +64,10 @@ func (bank *Bank) increaseBalance(
 		return decimal.Zero, errors.New("Unable to increase balance");
 	}
 
-	return bank.getBalance(wallet, currency);
+	return bank.GetBalance(wallet, currency);
 }
 
-func (bank *Bank) getBalance(
+func (bank *Bank) GetBalance(
 	wallet string,
 	currency string,
 ) (decimal.Decimal, error) {

@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/samott/crash-backend/game"
+	"github.com/samott/crash-backend/bank"
 
 	"database/sql"
 
@@ -19,11 +20,21 @@ import (
 
 	"github.com/go-sql-driver/mysql"
 	"github.com/zishang520/socket.io/v2/socket"
+
+	"github.com/shopspring/decimal"
 );
+
+var currencies map[string]bool;
 
 type AuthParams struct {
 	message string;
 	signature string;
+}
+
+type PlaceBetParams struct {
+	betAmount decimal.Decimal;
+	autoCashOut decimal.Decimal;
+	currency string;
 }
 
 type Session struct {
@@ -107,14 +118,69 @@ func validateAuthenticateParams(result *AuthParams, data ...any) (func([]any, er
 	return callback, nil;
 }
 
+func validatePlaceBetParams(result *PlaceBetParams, data ...any) (func([]any, error), error) {
+	if len(data) == 0 {
+		return nil, errors.New("Invalid parameters");
+	}
+
+	params, ok := data[0].(map[string]any);
+
+	if !ok {
+		return nil, errors.New("Invalid parameters");
+	}
+
+	betAmountStr, ok1 := params["betAmount"].(string);
+	autoCashOutStr, ok2 := params["autoCashOut"].(string);
+	currency, ok3 := params["currency"].(string);
+
+	if !ok1 || !ok2 || !ok3 {
+		return nil, errors.New("Invalid parameters");
+	}
+
+	betAmount, err1 := decimal.NewFromString(betAmountStr);
+	autoCashOut, err2 := decimal.NewFromString(autoCashOutStr);
+
+	if err1 != nil || err2 != nil {
+		return nil, errors.New("Invalid decimal numbers");
+	}
+
+	if _, ok := currencies[currency]; !ok {
+		return nil, errors.New("Unsupported currency");
+	}
+
+	*result = PlaceBetParams{
+		betAmount: betAmount,
+		autoCashOut: autoCashOut,
+		currency: currency,
+	};
+
+	if len(data) != 2 {
+		return nil, nil;
+	}
+
+	callback, ok := data[1].(func([]any, error));
+
+	if !ok {
+		// Ought to be an error, but we'll treat it
+		// as if there were no callback supplied
+		return nil, nil;
+	}
+
+	return callback, nil;
+}
+
 func main() {
 	slog.Info("Crash running...");
 
+	currencies = map[string]bool{
+		"eth": true,
+	};
+
 	dbConfig := mysql.Config{
 		User: "crash",
-		Passwd: "crash",
 		DBName: "crash",
 		Addr: "localhost",
+		AllowNativePasswords: true,
 	};
 
 	var db, err = sql.Open("mysql", dbConfig.FormatDSN());
@@ -127,7 +193,14 @@ func main() {
 	defer db.Close();
 
 	io := socket.NewServer(nil, nil);
-	gameObj, err := game.NewGame(io, db);
+	bankObj, err := bank.NewBank(db);
+
+	if err != nil {
+		slog.Error("Failed to init bank");
+		return;
+	}
+
+	gameObj, err := game.NewGame(io, db, game.Bank(bankObj));
 
 	if err != nil {
 		slog.Error("Failed to init game");
@@ -215,9 +288,35 @@ func main() {
 
 		gameObj.HandleConnect(client, session.wallet);
 
-		client.On("placeBet", func(...any) {
+		client.On("placeBet", func(data ...any) {
 			slog.Info("PlaceBet for user", "wallet", session.wallet);
-			gameObj.HandlePlaceBet(client);
+
+			var params PlaceBetParams;
+
+			callback, err := validatePlaceBetParams(&params, data...);
+
+			if err != nil {
+				slog.Warn("Invalid parameters", "client", client.Id);
+				client.Disconnect(true);
+				return;
+			}
+
+			err = gameObj.HandlePlaceBet(
+				client,
+				session.wallet,
+				params.currency,
+				params.betAmount,
+				params.autoCashOut,
+			);
+
+			if callback != nil {
+				callback(
+					[]any{ map[string]any{
+						"success": err == nil,
+					} },
+					nil,
+				);
+			}
 		});
 
 		client.On("cashOut", func(...any) {

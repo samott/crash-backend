@@ -36,6 +36,12 @@ const (
 	EVENT_PLAYER_LOST  = "PlayerLost";
 );
 
+type Bank interface {
+	IncreaseBalance(string, string, decimal.Decimal) (decimal.Decimal, error);
+	DecreaseBalance(string, string, decimal.Decimal) (decimal.Decimal, error);
+	GetBalance(string, string) (decimal.Decimal, error);
+};
+
 type CashOut struct {
 	absTime time.Time;
 	duration time.Duration;
@@ -67,22 +73,24 @@ type Game struct {
 	started time.Time;
 	io *socket.Server;
 	db *sql.DB;
+	bank Bank;
 	startTime time.Time;
 	endTime time.Time;
 	duration time.Duration;
 };
 
-func NewGame(io *socket.Server, db *sql.DB) (Game, error) {
+func NewGame(io *socket.Server, db *sql.DB, bank Bank) (*Game, error) {
 	gameId, err := uuid.NewV7();
 
 	if err != nil {
-		return Game{}, err;
+		return nil, err;
 	}
 
-	return Game{
+	return &Game{
 		id: gameId,
 		io: io,
 		db: db,
+		bank: bank,
 		observers: make(map[socket.SocketId]*Observer),
 		players: make([]*Player, 0),
 	}, nil;
@@ -167,20 +175,33 @@ func (game *Game) handleGameCrash() {
 	game.Emit(EVENT_GAME_CRASHED);
 }
 
-func (game *Game) HandlePlaceBet(client *socket.Socket) error {
-	betAmount, err := decimal.NewFromString("1.4");
-
-	if err != nil {
-		return err;
-	}
-
-	autoCashOut, err := decimal.NewFromString("2.0");
-
+func (game *Game) HandlePlaceBet(
+	client *socket.Socket,
+	wallet string,
+	currency string,
+	betAmount decimal.Decimal,
+	autoCashOut decimal.Decimal,
+) error {
 	player := Player{
+		wallet: wallet,
 		betAmount: betAmount,
 		autoCashOut: autoCashOut,
 		clientId: client.Id(),
 	};
+
+	for i := range(game.players) {
+		if game.players[i].wallet == wallet {
+			slog.Warn("Player already joined game");
+			return errors.New("Player already joined game");
+		}
+	}
+
+	_, err := game.bank.DecreaseBalance(wallet, currency, betAmount)
+
+	if err != nil {
+		slog.Warn("Failed to reduce user balance", "err", err);
+		return err;
+	}
 
 	if game.state == GAMESTATE_WAITING {
 		game.players = append(game.players, &player);
