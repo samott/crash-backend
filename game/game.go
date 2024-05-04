@@ -231,8 +231,18 @@ func (game *Game) HandlePlaceBet(
 	return nil;
 }
 
-func (game *Game) HandleCancelBet(client *socket.Socket) error {
-	return errors.New("Unimplemented");
+func (game *Game) HandleCancelBet(wallet string) error {
+	playerIndex := slices.IndexFunc(game.players, func(p *Player) bool {
+		return p.wallet == wallet;
+	});
+
+	if playerIndex == -1 {
+		return errors.New("Cancel bet denied - player not in list");
+	}
+
+	game.players = slices.Delete(game.players, playerIndex, playerIndex + 1);
+
+	return nil;
 }
 
 func (game *Game) HandleCashOut(wallet string) error {

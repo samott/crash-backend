@@ -317,6 +317,27 @@ func main() {
 			}
 		});
 
+		client.On("cancelBet", func(data ...any) {
+			slog.Info("CancelBet for user", "wallet", session.wallet);
+
+			err := gameObj.HandleCancelBet(session.wallet);
+
+			if len(data) == 0 {
+				return;
+			}
+
+			callback, ok := data[0].(func([]any, error));
+
+			if ok && callback != nil {
+				callback(
+					[]any{ map[string]any{
+						"success": err == nil,
+					} },
+					nil,
+				);
+			}
+		});
+
 		client.On("cashOut", func(...any) {
 			slog.Info("CashOut for user", "wallet", session.wallet);
 			gameObj.HandleCashOut(session.wallet);
