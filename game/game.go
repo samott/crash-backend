@@ -2,6 +2,7 @@ package game;
 
 import (
 	"time"
+	"math"
 
 	"slices"
 	"errors"
@@ -53,10 +54,12 @@ type CashOut struct {
 
 type Player struct {
 	betAmount decimal.Decimal;
+	currency string;
 	autoCashOut decimal.Decimal;
 	cashOut CashOut;
 	wallet string;
 	clientId socket.SocketId;
+	timeOut *time.Timer;
 };
 
 type Observer struct {
@@ -70,7 +73,6 @@ type Game struct {
 	players []*Player;
 	waiting []*Player;
 	observers map[socket.SocketId]*Observer;
-	started time.Time;
 	io *socket.Server;
 	db *sql.DB;
 	bank Bank;
@@ -148,6 +150,21 @@ func (game *Game) handleGameStart() {
 
 	game.state = GAMESTATE_RUNNING;
 
+	makeCallback := func(player *Player) func() {
+		return func() {
+			slog.Info("Auto cashing out", "wallet", player.wallet);
+			game.handleCashOut(player.wallet, true);
+		}
+	};
+
+	for i := range(game.players) {
+		if !game.players[i].autoCashOut.Equal(decimal.Zero) {
+			autoCashOut, _ := game.players[i].autoCashOut.Float64();
+			timeOut := time.Duration(float64(time.Millisecond) * math.Log(autoCashOut) / 6E-5);
+			game.players[i].timeOut = time.AfterFunc(timeOut, makeCallback(game.players[i]));
+		}
+	}
+
 	game.Emit(EVENT_GAME_RUNNING, map[string]any{
 		"startTime": game.startTime.Unix(),
 	});
@@ -166,9 +183,8 @@ func (game *Game) handleGameCrash() {
 
 	slog.Info("Entering game wait state...");
 
-	game.players = nil;
-	game.players = append(game.players, game.waiting...);
-	game.waiting = nil;
+	game.clearTimers();
+	game.commitWaiting();
 
 	game.createNewGame();
 
@@ -185,6 +201,7 @@ func (game *Game) HandlePlaceBet(
 	player := Player{
 		wallet: wallet,
 		betAmount: betAmount,
+		currency: currency,
 		autoCashOut: autoCashOut,
 		clientId: client.Id(),
 	};
@@ -218,8 +235,51 @@ func (game *Game) HandleCancelBet(client *socket.Socket) error {
 	return errors.New("Unimplemented");
 }
 
-func (game *Game) HandleCashOut(client *socket.Socket) error {
-	return errors.New("Unimplemented");
+func (game *Game) HandleCashOut(wallet string) error {
+	return game.handleCashOut(wallet, false);
+}
+
+func (game *Game) handleCashOut(wallet string, auto bool) error {
+	if game.state != GAMESTATE_RUNNING {
+		return errors.New("Cash out denied - game finished or not running");
+	}
+
+	playerIndex := slices.IndexFunc(game.players, func(p *Player) bool {
+		return p.wallet == wallet;
+	});
+
+	if playerIndex == -1 {
+		return errors.New("Cash out denied - player not in list");
+	}
+
+	player := game.players[playerIndex];
+
+	if player.cashOut.cashedOut {
+		return errors.New("Cash out denied - already cashed out");
+	}
+
+	timeNow := time.Now();
+	duration := timeNow.Sub(game.startTime);
+
+	payout, multiplier := game.calculatePayout(
+		duration,
+		player.betAmount,
+	);
+
+	slog.Info("Player cashed out", "wallet", player.wallet, "payout", payout, "currency", player.currency);
+
+	player.cashOut = CashOut{
+		absTime: timeNow,
+		duration: duration,
+		multiplier: multiplier,
+		payout: payout,
+		cashedOut: true,
+		auto: auto,
+	};
+
+	game.bank.IncreaseBalance(player.wallet, player.currency, payout);
+
+	return nil;
 }
 
 func (game *Game) HandleConnect(client *socket.Socket, wallet string) {
@@ -260,6 +320,33 @@ func (game *Game) HandleDisconnect(client *socket.Socket) {
 	}
 
 	delete(game.observers, client.Id());
+}
+
+func (game *Game) clearTimers() {
+	for i := range(game.players) {
+		if game.players[i].timeOut != nil {
+			game.players[i].timeOut.Stop();
+			game.players[i].timeOut = nil;
+		}
+	}
+}
+
+func (game *Game) commitWaiting() {
+	game.players = nil;
+	game.players = append(game.players, game.waiting...);
+	game.waiting = nil;
+}
+
+func (game *Game) calculatePayout(
+	duration time.Duration,
+	betAmount decimal.Decimal,
+) (decimal.Decimal, decimal.Decimal) {
+	durationMs := decimal.NewFromInt(duration.Milliseconds());
+	coeff := decimal.NewFromFloat(6E-5);
+	e := decimal.NewFromFloat(math.Exp(1));
+	multiplier := e.Pow(coeff.Mul(durationMs)).Truncate(2);
+
+	return betAmount.Mul(multiplier), multiplier;
 }
 
 /**

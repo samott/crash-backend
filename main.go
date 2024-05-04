@@ -321,7 +321,7 @@ func main() {
 
 		client.On("cashOut", func(...any) {
 			slog.Info("CashOut for user", "wallet", session.wallet);
-			gameObj.HandleCashOut(client);
+			gameObj.HandleCashOut(session.wallet);
 		});
 
 		client.On("disconnected", func(...any) {
