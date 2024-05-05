@@ -321,6 +321,32 @@ func main() {
 
 		gameObj.HandleConnect(client, session.wallet);
 
+		client.On("refreshToken", func(data ...any) {
+			slog.Info("Refreshing JWT token", "wallet", session.wallet);
+
+			token, err := generateToken(session.wallet);
+
+			if err != nil {
+				slog.Error("Error generating token", "err", err);
+				client.Emit("authenticate", map[string]any{
+					"success": false,
+				});
+				return;
+			}
+
+			callback := extractCallback(0, data...);
+
+			if callback != nil {
+				callback(
+					[]any{ map[string]any{
+						"token": token,
+						"success": true,
+					} },
+					nil,
+				);
+			}
+		});
+
 		client.On("placeBet", func(data ...any) {
 			slog.Info("PlaceBet for user", "wallet", session.wallet);
 
