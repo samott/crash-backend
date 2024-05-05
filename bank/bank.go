@@ -36,7 +36,7 @@ func (bank *Bank) DecreaseBalance(
 	}
 
 	if rows, err := result.RowsAffected(); rows == 0 || err != nil {
-		return decimal.Zero, errors.New("Unable to reduce balance");
+		return decimal.Zero, errors.New("Unable to decrease balance");
 	}
 
 	return bank.GetBalance(wallet, currency);
