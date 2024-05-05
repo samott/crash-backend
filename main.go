@@ -1,15 +1,15 @@
 package main;
 
 import (
-	"log/slog"
+	"time"
+	"errors"
+	"strings"
 
+	"log/slog"
 	"net/http"
 
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/common/hexutil"
-
-	"errors"
-	"strings"
 
 	"github.com/samott/crash-backend/game"
 	"github.com/samott/crash-backend/bank"
@@ -17,12 +17,15 @@ import (
 	"database/sql"
 
 	"github.com/spruceid/siwe-go"
+	"github.com/golang-jwt/jwt/v5"
 
 	"github.com/go-sql-driver/mysql"
 	"github.com/zishang520/socket.io/v2/socket"
 
 	"github.com/shopspring/decimal"
 );
+
+var JWT_SECRET = []byte("1_top_secret");
 
 var currencies map[string]bool;
 
@@ -42,11 +45,27 @@ type Session struct {
 }
 
 func validateToken(token string, session *Session) error {
-	if token != "token123" {
-		return errors.New("Invalid token");
+	tokenObj, err := jwt.Parse(token, func(token *jwt.Token) (interface{}, error) {
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, errors.New("Incorrect signing method");
+		}
+
+		return JWT_SECRET, nil;
+	})
+
+	if err != nil {
+		return err;
 	}
 
-	session.wallet = "0x1111111111111111111111111111111111111111";
+	claims, ok := tokenObj.Claims.(jwt.MapClaims);
+
+	if !ok || !tokenObj.Valid {
+		return errors.New("Invalid JWT token");
+	}
+
+	wallet := claims["wallet"].(string);
+
+	session.wallet = wallet;
 
 	return nil;
 }
@@ -70,12 +89,24 @@ func authenticateUser(payload string, signature string) (string, error) {
 	return wallet, nil;
 }
 
-func generateToken(wallet string) (string) {
+func generateToken(wallet string) (string, error) {
 	if len(wallet) == 0 {
-		return "";
+		return "", nil;
 	}
 
-	return "token123";
+	tokenObj := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+		"wallet": wallet,
+		"nbf": time.Now().Unix(),
+		"exp": time.Now().Add(time.Hour * 24).Unix(),
+	});
+
+	token, err := tokenObj.SignedString(JWT_SECRET);
+
+	if err != nil {
+		return "", err;
+	}
+
+	return token, nil;
 }
 
 func validateAuthenticateParams(result *AuthParams, data ...any) (func([]any, error), error) {
@@ -239,7 +270,15 @@ func main() {
 					return;
 				}
 
-				token := generateToken(wallet);
+				token, err := generateToken(wallet);
+
+				if err != nil {
+					slog.Error("Error generating token", "err", err);
+					client.Emit("authenticate", map[string]any{
+						"success": false,
+					});
+					return;
+				}
 
 				slog.Info("Authentication successful", "client", client.Id);
 
