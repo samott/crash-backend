@@ -3,6 +3,7 @@ package game;
 import (
 	"time"
 	"math"
+	"encoding/json"
 
 	"slices"
 	"errors"
@@ -81,6 +82,15 @@ type Game struct {
 	duration time.Duration;
 };
 
+func (p *Player) MarshalJSON() ([]byte, error) {
+	return json.Marshal(map[string]string{
+		"betAmount"  : p.betAmount.String(),
+		"currency"   : p.currency,
+		"autoCashOut": p.currency,
+		"wallet"     : p.wallet,
+	});
+}
+
 func NewGame(io *socket.Server, db *sql.DB, bank Bank) (*Game, error) {
 	gameId, err := uuid.NewV7();
 
@@ -95,6 +105,7 @@ func NewGame(io *socket.Server, db *sql.DB, bank Bank) (*Game, error) {
 		bank: bank,
 		observers: make(map[socket.SocketId]*Observer),
 		players: make([]*Player, 0),
+		waiting: make([]*Player, 0),
 	}, nil;
 }
 
@@ -228,6 +239,11 @@ func (game *Game) HandlePlaceBet(
 		return errors.New("Unable to join game");
 	}
 
+	game.Emit("BetList", map[string]any{
+		"players": game.players,
+		"waiting": game.waiting,
+	});
+
 	return nil;
 }
 
@@ -342,9 +358,9 @@ func (game *Game) clearTimers() {
 }
 
 func (game *Game) commitWaiting() {
-	game.players = nil;
+	game.players = []*Player{};
 	game.players = append(game.players, game.waiting...);
-	game.waiting = nil;
+	game.waiting = []*Player{};
 }
 
 func (game *Game) calculatePayout(
