@@ -1,0 +1,8 @@
+dlocalhostatabase:
+  username: "crash"
+  password: ""
+  database: "crash"
+  hostname: "localhost"
+
+cors:
+  origin: "http://127.0.0.53:11130"

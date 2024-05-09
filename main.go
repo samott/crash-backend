@@ -1,6 +1,7 @@
 package main;
 
 import (
+	"os"
 	"time"
 	"errors"
 	"strings"
@@ -22,6 +23,8 @@ import (
 	"github.com/go-sql-driver/mysql"
 	"github.com/zishang520/socket.io/v2/socket"
 	engineTypes "github.com/zishang520/engine.io/v2/types"
+
+	"gopkg.in/yaml.v3"
 
 	"github.com/shopspring/decimal"
 );
@@ -195,6 +198,32 @@ func extractCallback(index int, data ...any) func([]any, error) {
 	return callback;
 }
 
+type CrashConfig struct {
+	Database struct {
+		User string `yaml:"username"`;
+		DBName string `yaml:"database"`;
+		Addr string `yaml:"password"`;
+	}
+
+	Cors struct {
+		Origin string `yaml:"origin"`;
+	}
+};
+
+func loadConfig(configFile string) (*CrashConfig, error) {
+	data, err := os.ReadFile(configFile);
+
+	var config CrashConfig;
+
+	if err != nil {
+		return nil, err;
+	}
+
+	yaml.Unmarshal(data, &config);
+
+	return &config, nil;
+}
+
 func main() {
 	slog.Info("Crash running...");
 
@@ -202,14 +231,21 @@ func main() {
 		"eth": true,
 	};
 
+	config, err := loadConfig("crash.yaml");
+
+	if err != nil {
+		slog.Error("Failed to load config file");
+		return;
+	}
+
 	dbConfig := mysql.Config{
-		User: "crash",
-		DBName: "crash",
-		Addr: "localhost",
+		User: config.Database.User,
+		DBName: config.Database.DBName,
+		Addr: config.Database.Addr,
 		AllowNativePasswords: true,
 	};
 
-	var db, err = sql.Open("mysql", dbConfig.FormatDSN());
+	db, err := sql.Open("mysql", dbConfig.FormatDSN());
 
 	if err != nil {
 		slog.Error("Failed to connect to database", "error", err)
@@ -221,7 +257,7 @@ func main() {
 	options := socket.DefaultServerOptions();
 	options.SetAllowEIO3(true)
 	options.SetCors(&engineTypes.Cors{
-		Origin:      "http://127.0.0.53:11130",
+		Origin:      config.Cors.Origin,
 		Credentials: true,
 	});
 
