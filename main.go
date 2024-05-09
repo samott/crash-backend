@@ -21,6 +21,7 @@ import (
 
 	"github.com/go-sql-driver/mysql"
 	"github.com/zishang520/socket.io/v2/socket"
+	engineTypes "github.com/zishang520/engine.io/v2/types"
 
 	"github.com/shopspring/decimal"
 );
@@ -217,7 +218,14 @@ func main() {
 
 	defer db.Close();
 
-	io := socket.NewServer(nil, nil);
+	options := socket.DefaultServerOptions();
+	options.SetAllowEIO3(true)
+	options.SetCors(&engineTypes.Cors{
+		Origin:      "http://127.0.0.53:11130",
+		Credentials: true,
+	});
+
+	io := socket.NewServer(nil, options);
 	bankObj, err := bank.NewBank(db);
 
 	if err != nil {
