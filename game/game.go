@@ -96,6 +96,12 @@ type Game struct {
 	duration time.Duration;
 };
 
+type CrashedGame struct {
+	startTime time.Time;
+	duration time.Duration;
+	multiplier decimal.Decimal;
+}
+
 func (p *Player) MarshalJSON() ([]byte, error) {
 	return json.Marshal(map[string]string{
 		"betAmount"  : p.betAmount.String(),
@@ -204,6 +210,12 @@ func (game *Game) handleGameCrash() {
 		game.Emit(EVENT_PLAYER_LOST, map[string]any{
 			"wallet": game.players[i].wallet,
 		});
+	}
+
+	err := game.saveRecord();
+
+	if err != nil {
+		slog.Error("Error saving game record", "err", err);
 	}
 
 	slog.Info("Entering game wait state...");
@@ -412,6 +424,60 @@ func (game *Game) calculatePayout(
 	multiplier := e.Pow(coeff.Mul(durationMs)).Truncate(2);
 
 	return betAmount.Mul(multiplier), multiplier;
+}
+
+func (game *Game) getRecentGames(limit int) ([]CrashedGame, error) {
+	var games []CrashedGame;
+
+	rows, err := game.db.Query(`
+		SELECT startTime, (endTime - startTime) AS duration,
+		multiplier
+		FROM games
+		ORDER BY created DESC
+		LIMIT ?
+	`, limit);
+
+	for rows.Next() {
+		var gameRow CrashedGame;
+
+		rows.Scan(
+			gameRow.startTime,
+			gameRow.duration,
+			gameRow.multiplier,
+		);
+
+		games = append(games, gameRow);
+	}
+
+	if err != nil {
+		return nil, err;
+	}
+
+	return games, nil;
+}
+
+func (game *Game) saveRecord() (error) {
+	winners := 0;
+	players := len(game.players);
+
+	for i := range(game.players) {
+		if game.players[i].cashOut.cashedOut {
+			winners++;
+		}
+	}
+
+	_, err := game.db.Exec(`
+		INSERT INTO games
+		(id, startTime, endTime, playerCount, winnerCount)
+		VALUES
+		(?, ?, ?, ?, ?)
+	`, game.id, game.startTime, game.endTime, players, winners);
+
+	if err != nil {
+		return err;
+	}
+
+	return nil;
 }
 
 /**

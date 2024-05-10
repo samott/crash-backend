@@ -6,7 +6,10 @@ DROP TABLE IF EXISTS `balances`;
 
 CREATE TABLE `games` (
 	`id` uuid PRIMARY KEY NOT NULL,
-	`created` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3)
+	`startTime` datetime(3) NOT NULL,
+	`endTime` datetime(3) NOT NULL,
+	`playerCount` integer NOT NULL DEFAULT 0,
+	`winnerCount` integer NOT NULL DEFAULT 0
 );
 
 CREATE TABLE `bets` (
@@ -39,5 +42,5 @@ CREATE TABLE `ledger` (
 	`currency` varchar(32) NOT NULL,
 	`change` Decimal(32, 18) NOT NULL,
 	`gameId` uuid NOT NULL,
-	FOREIGN KEY(`betId`) REFERENCES `bets`(`id`)
+	FOREIGN KEY(`gameId`) REFERENCES `bets`(`id`)
 );
