@@ -38,6 +38,6 @@ CREATE TABLE `ledger` (
 	`wallet` char(42) NOT NULL,
 	`currency` varchar(32) NOT NULL,
 	`change` Decimal(32, 18) NOT NULL,
-	`betId` uuid NOT NULL,
+	`gameId` uuid NOT NULL,
 	FOREIGN KEY(`betId`) REFERENCES `bets`(`id`)
 );

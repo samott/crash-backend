@@ -39,8 +39,22 @@ const (
 );
 
 type Bank interface {
-	IncreaseBalance(string, string, decimal.Decimal) (decimal.Decimal, error);
-	DecreaseBalance(string, string, decimal.Decimal) (decimal.Decimal, error);
+	IncreaseBalance(
+		string,
+		string,
+		decimal.Decimal,
+		string,
+		uuid.UUID,
+	) (decimal.Decimal, error);
+
+	DecreaseBalance(
+		string,
+		string,
+		decimal.Decimal,
+		string,
+		uuid.UUID,
+	) (decimal.Decimal, error);
+
 	GetBalance(string, string) (decimal.Decimal, error);
 };
 
@@ -224,7 +238,13 @@ func (game *Game) HandlePlaceBet(
 		}
 	}
 
-	_, err := game.bank.DecreaseBalance(wallet, currency, betAmount)
+	_, err := game.bank.DecreaseBalance(
+		wallet,
+		currency,
+		betAmount,
+		"Bet placed",
+		game.id,
+	);
 
 	if err != nil {
 		slog.Warn("Failed to reduce user balance", "err", err);
@@ -303,7 +323,26 @@ func (game *Game) handleCashOut(wallet string, auto bool) error {
 		auto: auto,
 	};
 
-	game.bank.IncreaseBalance(player.wallet, player.currency, payout);
+	var reason string;
+
+	if (auto) {
+		reason = "Auto cashout";
+	} else {
+		reason = "Cashout";
+	}
+
+	game.bank.IncreaseBalance(
+		player.wallet,
+		player.currency,
+		payout,
+		reason,
+		game.id,
+	);
+
+	game.Emit("BetList", map[string]any{
+		"players": game.players,
+		"waiting": game.waiting,
+	});
 
 	return nil;
 }

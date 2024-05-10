@@ -1,8 +1,10 @@
 package bank;
 
 import (
-	"errors"
 	"database/sql"
+	"errors"
+
+	"github.com/google/uuid"
 	"github.com/shopspring/decimal"
 );
 
@@ -20,10 +22,21 @@ func (bank *Bank) DecreaseBalance(
 	wallet string,
 	currency string,
 	amount decimal.Decimal,
+	reason string,
+	gameId uuid.UUID,
 ) (decimal.Decimal, error) {
 	amountStr := amount.String();
+	amountNegStr := amount.Neg().String();
 
-	result, err := bank.db.Exec(`
+	tx, err := bank.db.BeginTx(nil, nil);
+
+	if err != nil {
+		return decimal.Zero, err;
+	}
+
+	defer tx.Rollback();
+
+	result, err := tx.Exec(`
 		UPDATE balances
 		SET spent = spent + ?
 		WHERE wallet = ?
@@ -39,6 +52,17 @@ func (bank *Bank) DecreaseBalance(
 		return decimal.Zero, errors.New("Unable to decrease balance");
 	}
 
+	result, err = tx.Exec(`
+		INSERT INTO ledger
+		(wallet, currency, change, reason, gameId)
+		VALUES
+		(?, ?, ?, ?)
+	`, wallet, currency, amountNegStr, reason, gameId.String());
+
+	if err := tx.Commit(); err != nil {
+		return decimal.Zero, nil;
+	}
+
 	return bank.GetBalance(wallet, currency);
 }
 
@@ -46,10 +70,20 @@ func (bank *Bank) IncreaseBalance(
 	wallet string,
 	currency string,
 	amount decimal.Decimal,
+	reason string,
+	gameId uuid.UUID,
 ) (decimal.Decimal, error) {
 	amountStr := amount.String();
 
-	result, err := bank.db.Exec(`
+	tx, err := bank.db.BeginTx(nil, nil);
+
+	if err != nil {
+		return decimal.Zero, err;
+	}
+
+	defer tx.Rollback();
+
+	result, err := tx.Exec(`
 		UPDATE balances
 		SET gained = gained + ?
 		WHERE wallet = ?
@@ -62,6 +96,17 @@ func (bank *Bank) IncreaseBalance(
 
 	if rows, err := result.RowsAffected(); rows == 0 || err != nil {
 		return decimal.Zero, errors.New("Unable to increase balance");
+	}
+
+	result, err = tx.Exec(`
+		INSERT INTO ledger
+		(wallet, currency, change, reason, gameId)
+		VALUES
+		(?, ?, ?, ?)
+	`, wallet, currency, amountStr, reason, gameId.String());
+
+	if err := tx.Commit(); err != nil {
+		return decimal.Zero, nil;
 	}
 
 	return bank.GetBalance(wallet, currency);
