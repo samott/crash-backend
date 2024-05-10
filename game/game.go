@@ -211,9 +211,9 @@ func (game *Game) handleGameCrash() {
 	game.clearTimers();
 	game.commitWaiting();
 
-	game.createNewGame();
-
 	game.Emit(EVENT_GAME_CRASHED);
+
+	time.AfterFunc(WAIT_TIME_SECS * time.Second, game.createNewGame);
 }
 
 func (game *Game) HandlePlaceBet(
