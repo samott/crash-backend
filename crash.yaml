@@ -6,3 +6,8 @@ database:
 
 cors:
   origin: "http://127.0.0.53:11130"
+
+logging:
+  localOnly: true
+  projectId: "project-123"
+  logId: "crash"
