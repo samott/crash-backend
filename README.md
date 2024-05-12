@@ -1,12 +1,10 @@
-Crash Game - Backend [WIP]
-==========================
+# Crash Game - Backend [WIP]
 
 Stack: Go.
 
 Licence: BSD-2-Clause.
 
-Setup
-=====
+## Setup
 
 Configuration options are found in `crash.yaml`.
 
