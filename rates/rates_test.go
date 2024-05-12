@@ -26,7 +26,7 @@ func TestFetchRates(t *testing.T) {
 
 	ratesSvc := NewService(&config);
 
-	result, err := ratesSvc.fetchRates()
+	result, err := ratesSvc.FetchRates();
 
 	if err != nil {
 		t.Fatal("Rates returned error", err);
@@ -75,7 +75,7 @@ func TestFetchRatesWithMissingCurrency(t *testing.T) {
 
 	ratesSvc := NewService(&config);
 
-	_, err := ratesSvc.fetchRates()
+	_, err := ratesSvc.FetchRates();
 
 	if err == nil {
 		t.Fatal("Rates improperly accepted result with missing currency", err);
@@ -100,7 +100,7 @@ func TestFetchRatesWithMissingFiat(t *testing.T) {
 
 	ratesSvc := NewService(&config);
 
-	_, err := ratesSvc.fetchRates()
+	_, err := ratesSvc.FetchRates();
 
 	if err == nil {
 		t.Fatal("Rates improperly accepted result with missing fiat currency", err);
@@ -126,7 +126,7 @@ func TestFetchRatesWithInvalid(t *testing.T) {
 
 	ratesSvc := NewService(&config);
 
-	_, err := ratesSvc.fetchRates()
+	_, err := ratesSvc.FetchRates();
 
 	if err == nil {
 		t.Fatal("Rates improperly parsed invalid response", err);
