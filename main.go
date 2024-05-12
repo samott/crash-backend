@@ -5,6 +5,7 @@ import (
 	"time"
 	"errors"
 	"strings"
+	"context"
 
 	"log/slog"
 	"net/http"
@@ -24,6 +25,8 @@ import (
 	"github.com/zishang520/socket.io/v2/socket"
 	engineTypes "github.com/zishang520/engine.io/v2/types"
 
+	"cloud.google.com/go/logging"
+
 	"gopkg.in/yaml.v3"
 
 	"github.com/shopspring/decimal"
@@ -32,6 +35,8 @@ import (
 var JWT_SECRET = []byte("1_top_secret");
 
 var currencies map[string]bool;
+
+type Log = map[string]any;
 
 type AuthParams struct {
 	message string;
@@ -47,6 +52,24 @@ type PlaceBetParams struct {
 type Session struct {
 	wallet string;
 }
+
+type CrashConfig struct {
+	Database struct {
+		User string `yaml:"username"`;
+		DBName string `yaml:"database"`;
+		Addr string `yaml:"password"`;
+	}
+
+	Cors struct {
+		Origin string `yaml:"origin"`;
+	}
+
+	Logging struct {
+		LocalOnly bool `yaml:"localOnly"`;
+		ProjectId string `yaml:"projectId"`;
+		LogId string `yaml:"logId"`;
+	}
+};
 
 func validateToken(token string, session *Session) error {
 	tokenObj, err := jwt.Parse(token, func(token *jwt.Token) (interface{}, error) {
@@ -198,18 +221,6 @@ func extractCallback(index int, data ...any) func([]any, error) {
 	return callback;
 }
 
-type CrashConfig struct {
-	Database struct {
-		User string `yaml:"username"`;
-		DBName string `yaml:"database"`;
-		Addr string `yaml:"password"`;
-	}
-
-	Cors struct {
-		Origin string `yaml:"origin"`;
-	}
-};
-
 func loadConfig(configFile string) (*CrashConfig, error) {
 	data, err := os.ReadFile(configFile);
 
@@ -237,6 +248,29 @@ func main() {
 		slog.Error("Failed to load config file");
 		return;
 	}
+
+	gcpClient, err := logging.NewClient(
+		context.Background(),
+		config.Logging.ProjectId,
+	);
+
+	if err != nil {
+		slog.Error("Failed to create logging client", "error", err);
+		return;
+	}
+
+	var logger *logging.Logger;
+
+	if config.Logging.LocalOnly {
+		logger = gcpClient.Logger(
+			config.Logging.LogId,
+			logging.RedirectAsJSON(os.Stdout),
+		);
+	} else {
+		logger = gcpClient.Logger(config.Logging.LogId);
+	}
+
+	defer gcpClient.Close();
 
 	dbConfig := mysql.Config{
 		User: config.Database.User,
@@ -282,7 +316,13 @@ func main() {
 	io.On("connection", func(clients ...any) {
 		client := clients[0].(*socket.Socket);
 
-		slog.Info("Client connected", "clientId", client.Id);
+		logger.Log(logging.Entry{
+			Payload: Log{
+				"msg"     : "Client connected",
+				"clientId": client.Id(),
+			},
+			Severity: logging.Info,
+		});
 
 		headers := client.Handshake().Headers;
 
@@ -296,7 +336,13 @@ func main() {
 			});
 
 			client.On("disconnected", func(...any) {
-				slog.Info("Client disconnected", "client", client);
+				logger.Log(logging.Entry{
+					Payload: Log{
+						"msg"     : "Client disconnected",
+						"clientId": client.Id(),
+					},
+					Severity: logging.Info,
+				});
 				gameObj.HandleDisconnect(client);
 			});
 
@@ -319,7 +365,13 @@ func main() {
 			return;
 		}
 
-		slog.Info("User authenticated", "wallet", session.wallet);
+		logger.Log(logging.Entry{
+			Payload: Log{
+				"msg"   : "User authenticated",
+				"wallet": session.wallet,
+			},
+			Severity: logging.Info,
+		});
 
 		gameObj.HandleConnect(client, session.wallet);
 
