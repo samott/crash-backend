@@ -42,7 +42,7 @@ func NewService(config *RatesConfig) (*Rates) {
 	};
 }
 
-func (rates *Rates) fetchRates() (RatesResult, error) {
+func (rates *Rates) FetchRates() (RatesResult, error) {
 	localIds := make([]string, 0, len(rates.config.Cryptos))
 	remoteIds := make([]string, 0, len(rates.config.Cryptos))
 	remote2Local := make(map[string]string);

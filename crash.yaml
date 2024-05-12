@@ -11,3 +11,22 @@ logging:
   localOnly: true
   projectId: "project-123"
   logId: "crash"
+
+currencies:
+  eth:
+    name: "Ethereum"
+    units: "ETH"
+    coinId: 1
+  btc:
+    name: "Bitcoin"
+    units: "BTC"
+    coinId: 2
+
+rates:
+  apiKey: ""
+  cryptos:
+    eth: "ethereum"
+    btc: "bitcoin"
+  fiats:
+    - "usd"
+    - "eur"

@@ -13,6 +13,7 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 
+	"github.com/samott/crash-backend/rates"
 	"github.com/samott/crash-backend/game"
 	"github.com/samott/crash-backend/bank"
 
@@ -62,6 +63,12 @@ type CrashConfig struct {
 
 	Cors struct {
 		Origin string `yaml:"origin"`;
+	}
+
+	Rates struct {
+		ApiKey string `yaml:"apiKey"`;
+		Cryptos map[string]string `yaml:"cryptos"`;
+		Fiats []string `yaml:"fiats"`;
 	}
 
 	Logging struct {
@@ -287,6 +294,14 @@ func main() {
 	}
 
 	defer db.Close();
+
+	ratesSvc := rates.NewService((*rates.RatesConfig)(&config.Rates));
+	_, err = ratesSvc.FetchRates();
+
+	if err != nil {
+		slog.Error("Failed to fetch rates", "error", err);
+		return;
+	}
 
 	options := socket.DefaultServerOptions();
 	options.SetAllowEIO3(true)
