@@ -1,10 +1,30 @@
 package main;
 
 import (
+	"net/http"
+	"encoding/json"
+
 	"log/slog"
 	"github.com/samott/crash-backend/game"
 	"github.com/zishang520/socket.io/v2/socket"
+
+	"github.com/spruceid/siwe-go"
 );
+
+func nonceHttpHandler(w http.ResponseWriter, r *http.Request) {
+	var nonce = siwe.GenerateNonce();
+	var result, err = json.Marshal(map[string]string{
+		"nonce": nonce,
+	});
+
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return;
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(result);
+}
 
 func authenticateHandler(
 	client *socket.Socket,

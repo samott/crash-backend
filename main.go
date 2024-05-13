@@ -325,6 +325,8 @@ func main() {
 		return;
 	}
 
+	http.HandleFunc("/nonce", nonceHttpHandler);
+
 	http.Handle("/socket.io/", io.ServeHandler(nil));
 	go http.ListenAndServe(":4000", nil);
 
