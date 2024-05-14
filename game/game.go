@@ -250,16 +250,27 @@ func (game *Game) HandlePlaceBet(
 		}
 	}
 
-	_, err := game.bank.DecreaseBalance(
+	bal, err := game.bank.GetBalance(
 		wallet,
 		currency,
-		betAmount,
-		"Bet placed",
-		game.id,
 	);
 
 	if err != nil {
-		slog.Warn("Failed to reduce user balance", "err", err);
+		slog.Warn("Failed to determine user balance", "err", err);
+		return err;
+	}
+
+	if bal.LessThan(betAmount) {
+		slog.Warn(
+			"Insufficient balance for operation",
+			"betAmount",
+			betAmount,
+			"balance",
+			bal,
+			"currency",
+			currency,
+		);
+
 		return err;
 	}
 
@@ -420,7 +431,28 @@ func (game *Game) clearTimers() {
 
 func (game *Game) commitWaiting() {
 	game.players = []*Player{};
-	game.players = append(game.players, game.waiting...);
+
+	for i := range(game.waiting) {
+		_, err := game.bank.DecreaseBalance(
+			game.waiting[i].wallet,
+			game.waiting[i].currency,
+			game.waiting[i].betAmount,
+			"Bet placed",
+			game.id,
+		);
+
+		if err != nil {
+			slog.Warn(
+				"Unable to take balance for user; removing from game...",
+				"wallet",
+				game.waiting[i].wallet,
+			);
+			continue;
+		}
+
+		game.players = append(game.players, game.waiting[i]);
+	}
+
 	game.waiting = []*Player{};
 }
 
