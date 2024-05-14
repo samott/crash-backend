@@ -6,6 +6,7 @@ import (
 	"errors"
 	"strings"
 	"context"
+	"flag"
 
 	"log/slog"
 	"net/http"
@@ -249,10 +250,14 @@ func main() {
 		"eth": true,
 	};
 
-	config, err := loadConfig("crash.yaml");
+	configFile := flag.String("configfile", "crash.yaml", "path to configuration file");
+
+	flag.Parse();
+
+	config, err := loadConfig(*configFile);
 
 	if err != nil {
-		slog.Error("Failed to load config file");
+		slog.Error("Failed to load config file " + *configFile);
 		return;
 	}
 
