@@ -1,30 +1,29 @@
-package main;
+package main
 
 import (
+	"context"
+	"errors"
+	"flag"
 	"os"
 	"time"
-	"errors"
-	"context"
-	"flag"
 
 	"log/slog"
 	"net/http"
 
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/common/hexutil"
 
-	"github.com/samott/crash-backend/rates"
-	"github.com/samott/crash-backend/game"
 	"github.com/samott/crash-backend/bank"
+	"github.com/samott/crash-backend/game"
+	"github.com/samott/crash-backend/rates"
 
 	"database/sql"
 
-	"github.com/spruceid/siwe-go"
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/spruceid/siwe-go"
 
 	"github.com/go-sql-driver/mysql"
-	"github.com/zishang520/socket.io/v2/socket"
 	engineTypes "github.com/zishang520/engine.io/v2/types"
+	"github.com/zishang520/socket.io/v2/socket"
 
 	"cloud.google.com/go/logging"
 
@@ -127,8 +126,7 @@ func authenticateUser(payload string, signature string) (string, error) {
 		return "", err;
 	}
 
-	bytes := crypto.FromECDSAPub(publicKey);
-	wallet := hexutil.Encode(bytes);
+	wallet := crypto.PubkeyToAddress(*publicKey).String();
 
 	return wallet, nil;
 }
