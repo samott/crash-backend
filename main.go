@@ -36,8 +36,6 @@ import (
 
 var JWT_SECRET = []byte("1_top_secret");
 
-var currencies map[string]bool;
-
 type Log = map[string]any;
 
 type AuthParams struct {
@@ -55,6 +53,12 @@ type Session struct {
 	wallet string;
 }
 
+type CurrencyDef struct {
+	Name string `yaml:"name"`;
+	Units string `yaml:"units"`;
+	CoinId uint32 `yaml:"coinId"`;
+}
+
 type CrashConfig struct {
 	Database struct {
 		User string `yaml:"username"`;
@@ -65,6 +69,8 @@ type CrashConfig struct {
 	Cors struct {
 		Origin string `yaml:"origin"`;
 	}
+
+	Currencies map[string]CurrencyDef `yaml:"currencies"`;
 
 	Rates struct {
 		ApiKey string `yaml:"apiKey"`;
@@ -172,7 +178,11 @@ func validateAuthenticateParams(result *AuthParams, data ...any) (func([]any, er
 	return callback, nil;
 }
 
-func validatePlaceBetParams(result *PlaceBetParams, data ...any) (func([]any, error), error) {
+func validatePlaceBetParams(
+	result *PlaceBetParams,
+	config *CrashConfig,
+	data ...any,
+) (func([]any, error), error) {
 	if len(data) == 0 {
 		return nil, errors.New("Invalid parameters");
 	}
@@ -198,7 +208,7 @@ func validatePlaceBetParams(result *PlaceBetParams, data ...any) (func([]any, er
 		return nil, errors.New("Invalid decimal numbers");
 	}
 
-	if _, ok := currencies[currency]; !ok {
+	if _, ok := config.Currencies[currency]; !ok {
 		return nil, errors.New("Unsupported currency");
 	}
 
@@ -245,10 +255,6 @@ func loadConfig(configFile string) (*CrashConfig, error) {
 
 func main() {
 	slog.Info("Crash running...");
-
-	currencies = map[string]bool{
-		"eth": true,
-	};
 
 	configFile := flag.String("configfile", "crash.yaml", "path to configuration file");
 
@@ -398,19 +404,19 @@ func main() {
 		gameObj.HandleConnect(client, session.wallet);
 
 		client.On("refreshToken", func(data ...any) {
-			refreshTokenHandler(client, session, *gameObj, data...);
+			refreshTokenHandler(client, session, config, *gameObj, data...);
 		});
 
 		client.On("placeBet", func(data ...any) {
-			placeBetHandler(client, session, *gameObj, data...);
+			placeBetHandler(client, session, config, *gameObj, data...);
 		});
 
 		client.On("cancelBet", func(data ...any) {
-			cancelBetHandler(client, session, *gameObj, data...);
+			cancelBetHandler(client, session, config, *gameObj, data...);
 		});
 
 		client.On("cashOut", func(data ...any) {
-			cashOutHandler(client, session, *gameObj, data...);
+			cashOutHandler(client, session, config, *gameObj, data...);
 		});
 	});
 

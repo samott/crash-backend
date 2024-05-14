@@ -79,7 +79,7 @@ func authenticateHandler(
 func disconnectedHandler(
 	client *socket.Socket,
 	gameObj game.Game,
-	_ ...any /* data */,
+	_ ...any,
 ) {
 	slog.Info("Client disconnected", "client", client);
 	gameObj.HandleDisconnect(client);
@@ -88,7 +88,8 @@ func disconnectedHandler(
 func refreshTokenHandler(
 	client *socket.Socket,
 	session Session,
-	_ game.Game /* gameObj */,
+	_ *CrashConfig,
+	_ game.Game,
 	data ...any,
 ) {
 	slog.Info("Refreshing JWT token", "wallet", session.wallet);
@@ -119,6 +120,7 @@ func refreshTokenHandler(
 func placeBetHandler(
 	client *socket.Socket,
 	session Session,
+	config *CrashConfig,
 	gameObj game.Game,
 	data ...any,
 ) {
@@ -126,7 +128,7 @@ func placeBetHandler(
 
 	var params PlaceBetParams;
 
-	callback, err := validatePlaceBetParams(&params, data...);
+	callback, err := validatePlaceBetParams(&params, config, data...);
 
 	if err != nil {
 		slog.Warn("Invalid parameters", "client", client.Id);
@@ -153,8 +155,9 @@ func placeBetHandler(
 }
 
 func cancelBetHandler(
-	_ *socket.Socket /* client */,
+	_ *socket.Socket,
 	session Session,
+	_ *CrashConfig,
 	gameObj game.Game,
 	data ...any,
 ) {
@@ -175,8 +178,9 @@ func cancelBetHandler(
 }
 
 func cashOutHandler(
-	_ *socket.Socket /* client */,
+	_ *socket.Socket,
 	session Session,
+	_ *CrashConfig,
 	gameObj game.Game,
 	_ ...any /* data */,
 ) {
