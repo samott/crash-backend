@@ -88,7 +88,7 @@ type CrashConfig struct {
 func validateToken(token string, session *Session) error {
 	tokenObj, err := jwt.Parse(token, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-			return nil, errors.New("Incorrect signing method");
+			return nil, errors.New("incorrect signing method");
 		}
 
 		return JWT_SECRET, nil;
@@ -101,7 +101,7 @@ func validateToken(token string, session *Session) error {
 	claims, ok := tokenObj.Claims.(jwt.MapClaims);
 
 	if !ok || !tokenObj.Valid {
-		return errors.New("Invalid JWT token");
+		return errors.New("invalid JWT token");
 	}
 
 	wallet := claims["wallet"].(string);
@@ -152,20 +152,20 @@ func generateToken(wallet string) (string, error) {
 
 func validateAuthenticateParams(result *AuthParams, data ...any) (func([]any, error), error) {
 	if len(data) == 0 {
-		return nil, errors.New("Invalid parameters");
+		return nil, errors.New("invalid parameters");
 	}
 
 	params, ok := data[0].(map[string]any);
 
 	if !ok {
-		return nil, errors.New("Invalid parameters");
+		return nil, errors.New("invalid parameters");
 	}
 
 	message, ok1 := params["message"].(string);
 	signature, ok2 := params["signature"].(string);
 
 	if !ok1 || !ok2 {
-		return nil, errors.New("Invalid parameters");
+		return nil, errors.New("invalid parameters");
 	}
 
 	*result = AuthParams{
@@ -184,13 +184,13 @@ func validatePlaceBetParams(
 	data ...any,
 ) (func([]any, error), error) {
 	if len(data) == 0 {
-		return nil, errors.New("Invalid parameters");
+		return nil, errors.New("invalid parameters");
 	}
 
 	params, ok := data[0].(map[string]any);
 
 	if !ok {
-		return nil, errors.New("Invalid parameters");
+		return nil, errors.New("invalid parameters");
 	}
 
 	betAmountStr, ok1 := params["betAmount"].(string);
@@ -198,18 +198,18 @@ func validatePlaceBetParams(
 	currency, ok3 := params["currency"].(string);
 
 	if !ok1 || !ok2 || !ok3 {
-		return nil, errors.New("Invalid parameters");
+		return nil, errors.New("invalid parameters");
 	}
 
 	betAmount, err1 := decimal.NewFromString(betAmountStr);
 	autoCashOut, err2 := decimal.NewFromString(autoCashOutStr);
 
 	if err1 != nil || err2 != nil {
-		return nil, errors.New("Invalid decimal numbers");
+		return nil, errors.New("invalid decimal numbers");
 	}
 
 	if _, ok := config.Currencies[currency]; !ok {
-		return nil, errors.New("Unsupported currency");
+		return nil, errors.New("unsupported currency");
 	}
 
 	*result = PlaceBetParams{
