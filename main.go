@@ -4,7 +4,6 @@ import (
 	"os"
 	"time"
 	"errors"
-	"strings"
 	"context"
 	"flag"
 
@@ -47,6 +46,10 @@ type PlaceBetParams struct {
 	betAmount decimal.Decimal;
 	autoCashOut decimal.Decimal;
 	currency string;
+}
+
+type LoginParams struct {
+	token string;
 }
 
 type Session struct {
@@ -171,6 +174,32 @@ func validateAuthenticateParams(result *AuthParams, data ...any) (func([]any, er
 	*result = AuthParams{
 		message: message,
 		signature: signature,
+	};
+
+	callback := extractCallback(1, data...);
+
+	return callback, nil;
+}
+
+func validateLoginParams(result *LoginParams, data ...any) (func([]any, error), error) {
+	if len(data) == 0 {
+		return nil, errors.New("invalid parameters");
+	}
+
+	params, ok := data[0].(map[string]any);
+
+	if !ok {
+		return nil, errors.New("invalid parameters");
+	}
+
+	token, ok := params["token"].(string);
+
+	if !ok {
+		return nil, errors.New("invalid parameters");
+	}
+
+	*result = LoginParams{
+		token: token,
 	};
 
 	callback := extractCallback(1, data...);
@@ -352,71 +381,71 @@ func main() {
 			Severity: logging.Info,
 		});
 
-		headers := client.Handshake().Headers;
+		gameObj.HandleConnect(client);
 
-		header, headerFound := headers["Authorization"];
+		client.On("authenticate", func(data ...any) {
+			authenticateHandler(client, *gameObj, data...);
+		});
 
-		if !headerFound {
-			gameObj.HandleConnect(client, "");
-
-			client.On("authenticate", func(data ...any) {
-				authenticateHandler(client, *gameObj, data...);
+		client.On("disconnected", func(...any) {
+			logger.Log(logging.Entry{
+				Payload: Log{
+					"msg"     : "Client disconnected",
+					"clientId": client.Id(),
+				},
+				Severity: logging.Info,
 			});
-
-			client.On("disconnected", func(...any) {
-				logger.Log(logging.Entry{
-					Payload: Log{
-						"msg"     : "Client disconnected",
-						"clientId": client.Id(),
-					},
-					Severity: logging.Info,
-				});
-				gameObj.HandleDisconnect(client);
-			});
-
-			return;
-		}
-
- 		if len(header) == 0 || !strings.HasPrefix(header[0], "Bearer ") {
-			slog.Warn("Missing auth header");
-			client.Disconnect(true);
-			return;
-		}
-
-		token := strings.TrimPrefix(header[0], "Bearer ");
+			gameObj.HandleDisconnect(client);
+		});
 
 		var session Session;
 
-		if err := validateToken(token, &session); err != nil {
-			slog.Warn("Invalid session");
-			client.Disconnect(true);
-			return;
-		}
+		client.On("login", func(data ...any) {
+			slog.Info("Client logging in", "client", client.Id);
 
-		logger.Log(logging.Entry{
-			Payload: Log{
-				"msg"   : "User authenticated",
-				"wallet": session.wallet,
-			},
-			Severity: logging.Info,
-		});
+			var params LoginParams;
+			callback, err := validateLoginParams(&params, data...);
 
-		gameObj.HandleConnect(client, session.wallet);
+			if err := validateToken(params.token, &session); err != nil {
+				slog.Warn("Invalid session");
+				client.Disconnect(true);
+				return;
+			}
 
-		client.On("refreshToken", func(data ...any) {
-			refreshTokenHandler(client, session, config, *gameObj, data...);
-		});
+			gameObj.HandleLogin(client, session.wallet);
 
-		client.On("placeBet", func(data ...any) {
-			placeBetHandler(client, session, config, *gameObj, data...);
-		});
+			logger.Log(logging.Entry{
+				Payload: Log{
+					"msg"   : "User logged in",
+					"wallet": session.wallet,
+				},
+				Severity: logging.Info,
+			});
 
-		client.On("cancelBet", func(data ...any) {
-			cancelBetHandler(client, session, config, *gameObj, data...);
-		});
+			client.On("refreshToken", func(data ...any) {
+				refreshTokenHandler(client, session, config, *gameObj, data...);
+			});
 
-		client.On("cashOut", func(data ...any) {
-			cashOutHandler(client, session, config, *gameObj, data...);
+			client.On("placeBet", func(data ...any) {
+				placeBetHandler(client, session, config, *gameObj, data...);
+			});
+
+			client.On("cancelBet", func(data ...any) {
+				cancelBetHandler(client, session, config, *gameObj, data...);
+			});
+
+			client.On("cashOut", func(data ...any) {
+				cashOutHandler(client, session, config, *gameObj, data...);
+			});
+
+			if callback != nil {
+				callback(
+					[]any{ map[string]any{
+						"success": err == nil,
+					} },
+					nil,
+				);
+			}
 		});
 	});
 

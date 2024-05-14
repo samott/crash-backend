@@ -359,7 +359,7 @@ func (game *Game) handleCashOut(wallet string, auto bool) error {
 	return nil;
 }
 
-func (game *Game) HandleConnect(client *socket.Socket, wallet string) {
+func (game *Game) HandleConnect(client *socket.Socket) {
 	_, exists := game.observers[client.Id()];
 
 	if exists {
@@ -367,7 +367,7 @@ func (game *Game) HandleConnect(client *socket.Socket, wallet string) {
 	}
 
 	observer := Observer{
-		wallet: wallet,
+		wallet: "",
 		socket: client,
 	};
 
@@ -387,6 +387,16 @@ func (game *Game) HandleConnect(client *socket.Socket, wallet string) {
 
 		return;
 	}
+}
+
+func (game *Game) HandleLogin(client *socket.Socket, wallet string) {
+	_, exists := game.observers[client.Id()];
+
+	if !exists {
+		return;
+	}
+
+	game.observers[client.Id()].wallet = wallet;
 }
 
 func (game *Game) HandleDisconnect(client *socket.Socket) {
