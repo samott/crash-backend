@@ -3,6 +3,7 @@ package bank;
 import (
 	"database/sql"
 	"errors"
+	"context"
 
 	"github.com/google/uuid"
 	"github.com/shopspring/decimal"
@@ -28,7 +29,7 @@ func (bank *Bank) DecreaseBalance(
 	amountStr := amount.String();
 	amountNegStr := amount.Neg().String();
 
-	tx, err := bank.db.BeginTx(nil, nil);
+	tx, err := bank.db.BeginTx(context.Background(), nil);
 
 	if err != nil {
 		return decimal.Zero, err;
@@ -75,7 +76,7 @@ func (bank *Bank) IncreaseBalance(
 ) (decimal.Decimal, error) {
 	amountStr := amount.String();
 
-	tx, err := bank.db.BeginTx(nil, nil);
+	tx, err := bank.db.BeginTx(context.Background(), nil);
 
 	if err != nil {
 		return decimal.Zero, err;
