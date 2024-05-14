@@ -8,6 +8,7 @@ CREATE TABLE `games` (
 	`id` uuid PRIMARY KEY NOT NULL,
 	`startTime` datetime(3) NOT NULL,
 	`endTime` datetime(3) NOT NULL,
+	`multiplier` Decimal(6, 2) NOT NULL DEFAULT 0,
 	`playerCount` integer NOT NULL DEFAULT 0,
 	`winnerCount` integer NOT NULL DEFAULT 0
 );

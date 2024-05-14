@@ -97,9 +97,12 @@ type Game struct {
 };
 
 type CrashedGame struct {
+	id uuid.UUID;
 	startTime time.Time;
 	duration time.Duration;
 	multiplier decimal.Decimal;
+	players int;
+	winners int;
 }
 
 func (p *Player) MarshalJSON() ([]byte, error) {
@@ -108,6 +111,17 @@ func (p *Player) MarshalJSON() ([]byte, error) {
 		"currency"   : p.currency,
 		"autoCashOut": p.currency,
 		"wallet"     : p.wallet,
+	});
+}
+
+func (g *CrashedGame) MarshalJSON() ([]byte, error) {
+	return json.Marshal(map[string]any{
+		"id"         : g.id.String(),
+		"startTime"  : g.startTime.Unix(),
+		"duration"   : g.duration.Milliseconds(),
+		"multiplier" : g.multiplier.String(),
+		"players"    : g.players,
+		"winners"    : g.winners,
 	});
 }
 
@@ -212,10 +226,12 @@ func (game *Game) handleGameCrash() {
 		});
 	}
 
-	err := game.saveRecord();
+	record, err := game.saveRecord();
 
 	if err != nil {
 		slog.Error("Error saving game record", "err", err);
+		game.clearTimers();
+		return;
 	}
 
 	slog.Info("Entering game wait state...");
@@ -223,7 +239,9 @@ func (game *Game) handleGameCrash() {
 	game.clearTimers();
 	game.commitWaiting();
 
-	game.Emit(EVENT_GAME_CRASHED);
+	game.Emit(EVENT_GAME_CRASHED, map[string]*CrashedGame{
+		"game": record,
+	});
 
 	time.AfterFunc(WAIT_TIME_SECS * time.Second, game.createNewGame);
 }
@@ -468,12 +486,21 @@ func (game *Game) calculatePayout(
 	return betAmount.Mul(multiplier), multiplier;
 }
 
+func (game *Game) calculateFinalMultiplier() (decimal.Decimal) {
+	duration := game.endTime.Sub(game.startTime);
+	durationMs := decimal.NewFromInt(duration.Milliseconds());
+	coeff := decimal.NewFromFloat(6E-5);
+	e := decimal.NewFromFloat(math.Exp(1));
+	multiplier := e.Pow(coeff.Mul(durationMs)).Truncate(2);
+	return multiplier;
+}
+
 func (game *Game) getRecentGames(limit int) ([]CrashedGame, error) {
 	var games []CrashedGame;
 
 	rows, err := game.db.Query(`
-		SELECT startTime, (endTime - startTime) AS duration,
-		multiplier
+		SELECT id, startTime, (endTime - startTime) AS duration,
+		multiplier, playerCount, winnerCount
 		FROM games
 		ORDER BY created DESC
 		LIMIT ?
@@ -483,9 +510,12 @@ func (game *Game) getRecentGames(limit int) ([]CrashedGame, error) {
 		var gameRow CrashedGame;
 
 		rows.Scan(
+			gameRow.id,
 			gameRow.startTime,
 			gameRow.duration,
 			gameRow.multiplier,
+			gameRow.players,
+			gameRow.winners,
 		);
 
 		games = append(games, gameRow);
@@ -498,7 +528,7 @@ func (game *Game) getRecentGames(limit int) ([]CrashedGame, error) {
 	return games, nil;
 }
 
-func (game *Game) saveRecord() (error) {
+func (game *Game) saveRecord() (*CrashedGame, error) {
 	winners := 0;
 	players := len(game.players);
 
@@ -508,18 +538,30 @@ func (game *Game) saveRecord() (error) {
 		}
 	}
 
+	multiplier := game.calculateFinalMultiplier();
+
 	_, err := game.db.Exec(`
 		INSERT INTO games
-		(id, startTime, endTime, playerCount, winnerCount)
+		(id, startTime, endTime, multiplier, playerCount, winnerCount)
 		VALUES
-		(?, ?, ?, ?, ?)
-	`, game.id, game.startTime, game.endTime, players, winners);
+		(?, ?, ?, ?, ?, ?)
+	`, game.id, game.startTime, game.endTime, multiplier,
+		players, winners);
 
 	if err != nil {
-		return err;
+		return nil, err;
 	}
 
-	return nil;
+	record := CrashedGame{
+		id: game.id,
+		startTime: game.startTime,
+		duration: game.endTime.Sub(game.startTime),
+		multiplier: multiplier,
+		players: players,
+		winners: winners,
+	};
+
+	return &record, nil;
 }
 
 /**
