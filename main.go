@@ -32,6 +32,14 @@ import (
 	"github.com/shopspring/decimal"
 );
 
+var (
+	ErrInvalidParameters = errors.New("invalid parameters")
+	ErrInvalidDecimalValue = errors.New("invalid decimal value")
+	ErrInvalidCurrency = errors.New("invalid currency")
+	ErrInvalidSigningMEthod = errors.New("invalid signing method")
+	ErrInvalidJwtToken = errors.New("invalid JWT token")
+)
+
 var JWT_SECRET = []byte("1_top_secret");
 
 type Log = map[string]any;
@@ -90,7 +98,7 @@ type CrashConfig struct {
 func validateToken(token string, session *Session) error {
 	tokenObj, err := jwt.Parse(token, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-			return nil, errors.New("incorrect signing method");
+			return nil, ErrInvalidSigningMEthod;
 		}
 
 		return JWT_SECRET, nil;
@@ -103,7 +111,7 @@ func validateToken(token string, session *Session) error {
 	claims, ok := tokenObj.Claims.(jwt.MapClaims);
 
 	if !ok || !tokenObj.Valid {
-		return errors.New("invalid JWT token");
+		return ErrInvalidJwtToken;
 	}
 
 	wallet := claims["wallet"].(string);
@@ -153,20 +161,20 @@ func generateToken(wallet string) (string, error) {
 
 func validateAuthenticateParams(result *AuthParams, data ...any) (func([]any, error), error) {
 	if len(data) == 0 {
-		return nil, errors.New("invalid parameters");
+		return nil, ErrInvalidParameters;
 	}
 
 	params, ok := data[0].(map[string]any);
 
 	if !ok {
-		return nil, errors.New("invalid parameters");
+		return nil, ErrInvalidParameters;
 	}
 
 	message, ok1 := params["message"].(string);
 	signature, ok2 := params["signature"].(string);
 
 	if !ok1 || !ok2 {
-		return nil, errors.New("invalid parameters");
+		return nil, ErrInvalidParameters;
 	}
 
 	*result = AuthParams{
@@ -181,19 +189,19 @@ func validateAuthenticateParams(result *AuthParams, data ...any) (func([]any, er
 
 func validateLoginParams(result *LoginParams, data ...any) (func([]any, error), error) {
 	if len(data) == 0 {
-		return nil, errors.New("invalid parameters");
+		return nil, ErrInvalidParameters;
 	}
 
 	params, ok := data[0].(map[string]any);
 
 	if !ok {
-		return nil, errors.New("invalid parameters");
+		return nil, ErrInvalidParameters;
 	}
 
 	token, ok := params["token"].(string);
 
 	if !ok {
-		return nil, errors.New("invalid parameters");
+		return nil, ErrInvalidParameters;
 	}
 
 	*result = LoginParams{
@@ -211,13 +219,13 @@ func validatePlaceBetParams(
 	data ...any,
 ) (func([]any, error), error) {
 	if len(data) == 0 {
-		return nil, errors.New("invalid parameters");
+		return nil, ErrInvalidParameters;
 	}
 
 	params, ok := data[0].(map[string]any);
 
 	if !ok {
-		return nil, errors.New("invalid parameters");
+		return nil, ErrInvalidParameters;
 	}
 
 	betAmountStr, ok1 := params["betAmount"].(string);
@@ -225,18 +233,18 @@ func validatePlaceBetParams(
 	currency, ok3 := params["currency"].(string);
 
 	if !ok1 || !ok2 || !ok3 {
-		return nil, errors.New("invalid parameters");
+		return nil, ErrInvalidParameters;
 	}
 
 	betAmount, err1 := decimal.NewFromString(betAmountStr);
 	autoCashOut, err2 := decimal.NewFromString(autoCashOutStr);
 
 	if err1 != nil || err2 != nil {
-		return nil, errors.New("invalid decimal numbers");
+		return nil, ErrInvalidDecimalValue;
 	}
 
 	if _, ok := config.Currencies[currency]; !ok {
-		return nil, errors.New("unsupported currency");
+		return nil, ErrInvalidCurrency;
 	}
 
 	*result = PlaceBetParams{

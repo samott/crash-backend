@@ -20,6 +20,13 @@ import (
 	"github.com/zishang520/socket.io/v2/socket"
 );
 
+var (
+	ErrPlayerAlreadyJoined = errors.New("player already joined game")
+	ErrWrongGameState = errors.New("action invalid for current game state")
+	ErrPlayerNotWaiting = errors.New("player not in waiting list")
+	ErrAlreadyCashedOut = errors.New("player already cashed out")
+)
+
 const WAIT_TIME_SECS = 5;
 
 const (
@@ -264,7 +271,7 @@ func (game *Game) HandlePlaceBet(
 	for i := range(game.players) {
 		if game.players[i].wallet == wallet {
 			slog.Warn("Player already joined game");
-			return errors.New("player already joined game");
+			return ErrPlayerAlreadyJoined;
 		}
 	}
 
@@ -297,7 +304,7 @@ func (game *Game) HandlePlaceBet(
 	} else if (game.state == GAMESTATE_RUNNING) {
 		game.waiting = append(game.waiting, &player);
 	} else {
-		return errors.New("unable to join game");
+		return ErrWrongGameState;
 	}
 
 	game.Emit("BetList", map[string]any{
@@ -314,7 +321,7 @@ func (game *Game) HandleCancelBet(wallet string) error {
 	});
 
 	if playerIndex == -1 {
-		return errors.New("cancel bet denied - player not in list");
+		return ErrPlayerNotWaiting;
 	}
 
 	game.players = slices.Delete(game.players, playerIndex, playerIndex + 1);
@@ -328,7 +335,7 @@ func (game *Game) HandleCashOut(wallet string) error {
 
 func (game *Game) handleCashOut(wallet string, auto bool) error {
 	if game.state != GAMESTATE_RUNNING {
-		return errors.New("cash out denied - game finished or not running");
+		return ErrWrongGameState;
 	}
 
 	playerIndex := slices.IndexFunc(game.players, func(p *Player) bool {
@@ -336,13 +343,13 @@ func (game *Game) handleCashOut(wallet string, auto bool) error {
 	});
 
 	if playerIndex == -1 {
-		return errors.New("cash out denied - player not in list");
+		return ErrPlayerNotWaiting;
 	}
 
 	player := game.players[playerIndex];
 
 	if player.cashOut.cashedOut {
-		return errors.New("cash out denied - already cashed out");
+		return ErrAlreadyCashedOut;
 	}
 
 	timeNow := time.Now();

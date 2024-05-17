@@ -7,7 +7,13 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/shopspring/decimal"
-);
+)
+
+var (
+	ErrUnableToDecreaseBalance = errors.New("Unable to decrease balance")
+	ErrUnableToIncreaseBalance = errors.New("Unable to increase balance")
+	ErrBalanceRecordNotFound = errors.New("Balance record not found");
+)
 
 type Bank struct {
 	db *sql.DB;
@@ -50,7 +56,7 @@ func (bank *Bank) DecreaseBalance(
 	}
 
 	if rows, err := result.RowsAffected(); rows == 0 || err != nil {
-		return decimal.Zero, errors.New("Unable to decrease balance");
+		return decimal.Zero, ErrUnableToDecreaseBalance;
 	}
 
 	result, err = tx.Exec(`
@@ -96,7 +102,7 @@ func (bank *Bank) IncreaseBalance(
 	}
 
 	if rows, err := result.RowsAffected(); rows == 0 || err != nil {
-		return decimal.Zero, errors.New("Unable to increase balance");
+		return decimal.Zero, ErrUnableToIncreaseBalance;
 	}
 
 	result, err = tx.Exec(`
@@ -134,7 +140,7 @@ func (bank *Bank) GetBalance(
 	defer rows.Close();
 
 	if (!rows.Next()) {
-		return decimal.Zero, errors.New("Balance record not found");
+		return decimal.Zero, ErrBalanceRecordNotFound;
 	}
 
 	rows.Scan(&balanceStr);
