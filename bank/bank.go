@@ -139,7 +139,7 @@ func (bank *Bank) GetBalance(
 
 	defer rows.Close();
 
-	if (!rows.Next()) {
+	if !rows.Next() {
 		return decimal.Zero, ErrBalanceRecordNotFound;
 	}
 
