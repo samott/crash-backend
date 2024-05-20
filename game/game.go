@@ -379,13 +379,34 @@ func (game *Game) handleCashOut(wallet string, auto bool) error {
 		reason = "Cashout";
 	}
 
-	game.bank.IncreaseBalance(
+	newBalance, err := game.bank.IncreaseBalance(
 		player.wallet,
 		player.currency,
 		payout,
 		reason,
 		game.id,
 	);
+
+	if err != nil {
+		slog.Error(
+			"Failed to credit win",
+			"wallet",
+			player.wallet,
+			"payout",
+			payout,
+			"currency",
+			player.currency,
+		);
+	}
+
+	observer, ok := game.observers[player.clientId];
+
+	if ok && observer.socket.Connected() {
+		observer.socket.Emit("balanceUpdate", map[string]string{
+			"currency": player.currency,
+			"balance" : newBalance.String(),
+		});
+	}
 
 	game.Emit("BetList", map[string]any{
 		"players": game.players,
