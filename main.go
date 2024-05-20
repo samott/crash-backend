@@ -12,6 +12,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/crypto"
 
+	"github.com/samott/crash-backend/config"
 	"github.com/samott/crash-backend/bank"
 	"github.com/samott/crash-backend/game"
 	"github.com/samott/crash-backend/rates"
@@ -24,11 +25,7 @@ import (
 	"github.com/go-sql-driver/mysql"
 	engineTypes "github.com/zishang520/engine.io/v2/types"
 	"github.com/zishang520/socket.io/v2/socket"
-
 	"cloud.google.com/go/logging"
-
-	"gopkg.in/yaml.v3"
-
 	"github.com/shopspring/decimal"
 );
 
@@ -62,38 +59,6 @@ type LoginParams struct {
 type Session struct {
 	wallet string;
 }
-
-type CurrencyDef struct {
-	Name string `yaml:"name"`;
-	Units string `yaml:"units"`;
-	CoinId uint32 `yaml:"coinId"`;
-}
-
-type CrashConfig struct {
-	Database struct {
-		User string `yaml:"username"`;
-		DBName string `yaml:"database"`;
-		Addr string `yaml:"password"`;
-	}
-
-	Cors struct {
-		Origin string `yaml:"origin"`;
-	}
-
-	Currencies map[string]CurrencyDef `yaml:"currencies"`;
-
-	Rates struct {
-		ApiKey string `yaml:"apiKey"`;
-		Cryptos map[string]string `yaml:"cryptos"`;
-		Fiats []string `yaml:"fiats"`;
-	}
-
-	Logging struct {
-		LocalOnly bool `yaml:"localOnly"`;
-		ProjectId string `yaml:"projectId"`;
-		LogId string `yaml:"logId"`;
-	}
-};
 
 func validateToken(token string, session *Session) error {
 	tokenObj, err := jwt.Parse(token, func(token *jwt.Token) (interface{}, error) {
@@ -215,7 +180,7 @@ func validateLoginParams(result *LoginParams, data ...any) (func([]any, error), 
 
 func validatePlaceBetParams(
 	result *PlaceBetParams,
-	config *CrashConfig,
+	config *config.CrashConfig,
 	data ...any,
 ) (func([]any, error), error) {
 	if len(data) == 0 {
@@ -274,20 +239,6 @@ func extractCallback(index int, data ...any) func([]any, error) {
 	return callback;
 }
 
-func loadConfig(configFile string) (*CrashConfig, error) {
-	data, err := os.ReadFile(configFile);
-
-	var config CrashConfig;
-
-	if err != nil {
-		return nil, err;
-	}
-
-	yaml.Unmarshal(data, &config);
-
-	return &config, nil;
-}
-
 func main() {
 	slog.Info("Crash running...");
 
@@ -295,7 +246,7 @@ func main() {
 
 	flag.Parse();
 
-	config, err := loadConfig(*configFile);
+	config, err := config.LoadConfig(*configFile);
 
 	if err != nil {
 		slog.Error("Failed to load config file " + *configFile);

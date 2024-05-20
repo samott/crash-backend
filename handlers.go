@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 
 	"log/slog"
+	"github.com/samott/crash-backend/config"
 	"github.com/samott/crash-backend/game"
 	"github.com/zishang520/socket.io/v2/socket"
 
@@ -88,7 +89,7 @@ func disconnectedHandler(
 func refreshTokenHandler(
 	client *socket.Socket,
 	session Session,
-	_ *CrashConfig,
+	_ *config.CrashConfig,
 	_ game.Game,
 	data ...any,
 ) {
@@ -120,7 +121,7 @@ func refreshTokenHandler(
 func placeBetHandler(
 	client *socket.Socket,
 	session Session,
-	config *CrashConfig,
+	config *config.CrashConfig,
 	gameObj game.Game,
 	data ...any,
 ) {
@@ -157,7 +158,7 @@ func placeBetHandler(
 func cancelBetHandler(
 	_ *socket.Socket,
 	session Session,
-	_ *CrashConfig,
+	_ *config.CrashConfig,
 	gameObj game.Game,
 	data ...any,
 ) {
@@ -180,7 +181,7 @@ func cancelBetHandler(
 func cashOutHandler(
 	_ *socket.Socket,
 	session Session,
-	_ *CrashConfig,
+	_ *config.CrashConfig,
 	gameObj game.Game,
 	_ ...any /* data */,
 ) {
