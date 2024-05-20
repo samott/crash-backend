@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"errors"
 	"context"
+	"log/slog"
 
 	"github.com/google/uuid"
 	"github.com/shopspring/decimal"
@@ -152,4 +153,50 @@ func (bank *Bank) GetBalance(
 	}
 
 	return balance, nil;
+}
+
+func (bank *Bank) GetBalances(
+	wallet string,
+) (map[string]decimal.Decimal, error) {
+	balances := make(map[string]decimal.Decimal);
+
+	rows, err := bank.db.Query(`
+		SELECT currency, balance + gained - spent AS balance
+		FROM balances
+		WHERE wallet = ?
+	`, wallet);
+
+	if err != nil {
+		return balances, err;
+	}
+
+	defer rows.Close();
+
+	for rows.Next() {
+		var (
+			currency string
+			balanceStr string
+		);
+
+		rows.Scan(&currency, &balanceStr);
+
+		balance, err := decimal.NewFromString(balanceStr);
+
+		if err != nil {
+			slog.Error(
+				"Unable to load decimal balance from database",
+				"wallet",
+				wallet,
+				"currency",
+				currency,
+			);
+
+			balance = decimal.Zero;
+		}
+
+		balances[currency] = balance;
+	}
+
+
+	return balances, nil;
 }
