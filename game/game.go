@@ -65,6 +65,8 @@ type Bank interface {
 	) (decimal.Decimal, error);
 
 	GetBalance(string, string) (decimal.Decimal, error);
+
+	GetBalances(wallet string) (map[string]decimal.Decimal, error);
 };
 
 type CashOut struct {
@@ -460,13 +462,23 @@ func (game *Game) HandleConnect(client *socket.Socket) {
 }
 
 func (game *Game) HandleLogin(client *socket.Socket, wallet string) {
-	_, exists := game.observers[client.Id()];
+	observer, exists := game.observers[client.Id()];
 
 	if !exists {
 		return;
 	}
 
-	game.observers[client.Id()].wallet = wallet;
+	observer.wallet = wallet;
+
+	balances, err := game.bank.GetBalances(wallet);
+
+	if err != nil {
+		return;
+	}
+
+	observer.socket.Emit("balanceInit", map[string]map[string]decimal.Decimal{
+		"balances" : balances,
+	});
 }
 
 func (game *Game) HandleDisconnect(client *socket.Socket) {
