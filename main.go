@@ -315,7 +315,7 @@ func main() {
 		return;
 	}
 
-	gameObj, err := game.NewGame(io, db, game.Bank(bankObj));
+	gameObj, err := game.NewGame(io, db, config, game.Bank(bankObj));
 
 	if err != nil {
 		slog.Error("Failed to init game");
@@ -380,19 +380,19 @@ func main() {
 			});
 
 			client.On("refreshToken", func(data ...any) {
-				refreshTokenHandler(client, session, config, *gameObj, data...);
+				refreshTokenHandler(client, session, *gameObj, data...);
 			});
 
 			client.On("placeBet", func(data ...any) {
-				placeBetHandler(client, session, config, *gameObj, data...);
+				placeBetHandler(client, session, *gameObj, data...);
 			});
 
 			client.On("cancelBet", func(data ...any) {
-				cancelBetHandler(client, session, config, *gameObj, data...);
+				cancelBetHandler(client, session, *gameObj, data...);
 			});
 
 			client.On("cashOut", func(data ...any) {
-				cashOutHandler(client, session, config, *gameObj, data...);
+				cashOutHandler(client, session, *gameObj, data...);
 			});
 
 			if callback != nil {

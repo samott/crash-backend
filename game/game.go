@@ -18,6 +18,8 @@ import (
 	"github.com/google/uuid"
 	"github.com/shopspring/decimal"
 	"github.com/zishang520/socket.io/v2/socket"
+
+	"github.com/samott/crash-backend/config"
 );
 
 var (
@@ -97,6 +99,7 @@ type Game struct {
 	observers map[socket.SocketId]*Observer;
 	io *socket.Server;
 	db *sql.DB;
+	config *config.CrashConfig;
 	bank Bank;
 	startTime time.Time;
 	endTime time.Time;
@@ -132,7 +135,12 @@ func (g *CrashedGame) MarshalJSON() ([]byte, error) {
 	});
 }
 
-func NewGame(io *socket.Server, db *sql.DB, bank Bank) (*Game, error) {
+func NewGame(
+	io *socket.Server,
+	db *sql.DB,
+	config *config.CrashConfig,
+	bank Bank,
+) (*Game, error) {
 	gameId, err := uuid.NewV7();
 
 	if err != nil {
@@ -143,11 +151,16 @@ func NewGame(io *socket.Server, db *sql.DB, bank Bank) (*Game, error) {
 		id: gameId,
 		io: io,
 		db: db,
+		config: config,
 		bank: bank,
 		observers: make(map[socket.SocketId]*Observer),
 		players: make([]*Player, 0),
 		waiting: make([]*Player, 0),
 	}, nil;
+}
+
+func (game *Game) GetConfig() (*config.CrashConfig) {
+	return game.config;
 }
 
 func (game *Game) createNewGame() {
