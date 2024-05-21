@@ -417,7 +417,7 @@ func (game *Game) handleCashOut(wallet string, auto bool) error {
 	observer, ok := game.observers[player.clientId];
 
 	if ok && observer.socket.Connected() {
-		observer.socket.Emit("balanceUpdate", map[string]string{
+		observer.socket.Emit("UpdateBalance", map[string]string{
 			"currency": player.currency,
 			"balance" : newBalance.String(),
 		});
@@ -476,7 +476,7 @@ func (game *Game) HandleLogin(client *socket.Socket, wallet string) {
 		return;
 	}
 
-	observer.socket.Emit("balanceInit", map[string]map[string]decimal.Decimal{
+	observer.socket.Emit("InitBalances", map[string]map[string]decimal.Decimal{
 		"balances" : balances,
 	});
 }
