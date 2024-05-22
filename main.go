@@ -239,6 +239,13 @@ func extractCallback(index int, data ...any) func([]any, error) {
 	return callback;
 }
 
+func corsWrapper(handler http.HandlerFunc, cfg *config.CrashConfig) http.HandlerFunc {
+	return func(res http.ResponseWriter, req *http.Request) {
+		res.Header().Set("Access-Control-Allow-Origin", cfg.Cors.Origin);
+		handler(res, req);
+	};
+}
+
 func main() {
 	slog.Info("Crash running...");
 
@@ -322,7 +329,7 @@ func main() {
 		return;
 	}
 
-	http.HandleFunc("/nonce", nonceHttpHandler);
+	http.HandleFunc("/nonce", corsWrapper(nonceHttpHandler, config));
 
 	http.Handle("/socket.io/", io.ServeHandler(nil));
 	go http.ListenAndServe(":4000", nil);
