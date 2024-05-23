@@ -322,7 +322,7 @@ func main() {
 		return;
 	}
 
-	gameObj, err := game.NewGame(io, db, config, game.Bank(bankObj));
+	gameObj, err := game.NewGame(io, db, config, logger, game.Bank(bankObj));
 
 	if err != nil {
 		slog.Error("Failed to init game");

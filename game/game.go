@@ -17,6 +17,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/shopspring/decimal"
+	"cloud.google.com/go/logging"
 	"github.com/zishang520/socket.io/v2/socket"
 
 	"github.com/samott/crash-backend/config"
@@ -101,6 +102,7 @@ type Game struct {
 	observers map[socket.SocketId]*Observer;
 	io *socket.Server;
 	db *sql.DB;
+	logger *logging.Logger;
 	config *config.CrashConfig;
 	bank Bank;
 	startTime time.Time;
@@ -141,6 +143,7 @@ func NewGame(
 	io *socket.Server,
 	db *sql.DB,
 	config *config.CrashConfig,
+	logger *logging.Logger,
 	bank Bank,
 ) (*Game, error) {
 	gameId, err := uuid.NewV7();
@@ -154,6 +157,7 @@ func NewGame(
 		io: io,
 		db: db,
 		config: config,
+		logger: logger,
 		bank: bank,
 		observers: make(map[socket.SocketId]*Observer),
 		players: make([]*Player, 0),
