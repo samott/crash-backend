@@ -482,24 +482,17 @@ func (game *Game) handleCashOut(wallet string, auto bool) error {
 	if err != nil {
 		game.logger.Log(logging.Entry{
 			Payload: Log{
-				"msg"      : "Failed to credit win",
-				"game"     : game.id,
-				"wallet"   : player.wallet,
-				"payout"   : payout,
-				"currency" : player.currency,
+				"msg"     : "Failed to credit win",
+				"game"    : game.id,
+				"wallet"  : player.wallet,
+				"payout"  : payout,
+				"currency": player.currency,
 			},
 			Severity: logging.Error,
 		});
 	}
 
-	observer, ok := game.observers[player.clientId];
-
-	if ok && observer.socket.Connected() {
-		observer.socket.Emit("UpdateBalance", map[string]string{
-			"currency": player.currency,
-			"balance" : newBalance.String(),
-		});
-	}
+	game.emitBalanceUpdate(player, newBalance);
 
 	game.Emit("BetList", map[string]any{
 		"players": game.players,
@@ -588,7 +581,7 @@ func (game *Game) commitWaiting() {
 	game.players = []*Player{};
 
 	for i := range(game.waiting) {
-		_, err := game.bank.DecreaseBalance(
+		newBalance, err := game.bank.DecreaseBalance(
 			game.waiting[i].wallet,
 			game.waiting[i].currency,
 			game.waiting[i].betAmount,
@@ -608,6 +601,8 @@ func (game *Game) commitWaiting() {
 
 			continue;
 		}
+
+		game.emitBalanceUpdate(game.waiting[i], newBalance);
 
 		game.players = append(game.players, game.waiting[i]);
 	}
@@ -703,6 +698,17 @@ func (game *Game) saveRecord() (*CrashedGame, error) {
 	};
 
 	return &record, nil;
+}
+
+func (game *Game) emitBalanceUpdate(player *Player, newBalance decimal.Decimal) {
+	observer, ok := game.observers[player.clientId];
+
+	if ok && observer.socket.Connected() {
+		observer.socket.Emit("UpdateBalance", map[string]string{
+			"currency": player.currency,
+			"balance" : newBalance.String(),
+		});
+	}
 }
 
 /**
