@@ -11,8 +11,6 @@ import (
 	"math/big"
 	"crypto/rand"
 
-	"log/slog"
-
 	"database/sql"
 
 	"github.com/google/uuid"
@@ -47,6 +45,8 @@ const (
 	EVENT_PLAYER_WON   = "PlayerWon";
 	EVENT_PLAYER_LOST  = "PlayerLost";
 );
+
+type Log = map[string]any;
 
 type Bank interface {
 	IncreaseBalance(
@@ -193,15 +193,15 @@ func (game *Game) createNewGame() {
 	time.AfterFunc(untilStart, game.handleGameStart);
 	time.AfterFunc(untilStart + game.duration, game.handleGameCrash);
 
-	slog.Info(
-		"Created new game",
-		"game",
-		game.id,
-		"startTime",
-		game.startTime,
-		"endTime",
-		game.endTime,
-	);
+	game.logger.Log(logging.Entry{
+		Payload: Log{
+			"msg"      : "Created new game",
+			"game"     : game.id,
+			"startTime": game.startTime,
+			"endTime"  : game.endTime,
+		},
+		Severity: logging.Info,
+	});
 
 	game.Emit(EVENT_GAME_WAITING, map[string]any{
 		"startTime": game.startTime.Unix(),
@@ -209,21 +209,49 @@ func (game *Game) createNewGame() {
 }
 
 func (game *Game) handleGameStart() {
-	slog.Info("Preparing to start game...", "game", game.id);
+	game.logger.Log(logging.Entry{
+		Payload: Log{
+			"msg" : "Preparing to start game...",
+			"game": game.id,
+		},
+		Severity: logging.Info,
+	});
 
 	if len(game.observers) == 0 {
-		slog.Info("No observers; not starting.");
+		game.logger.Log(logging.Entry{
+			Payload: Log{
+				"msg" : "No observers; not starting.",
+				"game": game.id,
+			},
+			Severity: logging.Info,
+		});
+
 		game.state = GAMESTATE_STOPPED;
 		return;
 	}
 
-	slog.Info("Starting game...", "game", game.id, "duration", game.duration);
+	game.logger.Log(logging.Entry{
+		Payload: Log{
+			"msg"     : "Starting game...",
+			"game"    : game.id,
+			"duration": game.duration,
+		},
+		Severity: logging.Info,
+	});
 
 	game.state = GAMESTATE_RUNNING;
 
 	makeCallback := func(player *Player) func() {
 		return func() {
-			slog.Info("Auto cashing out", "wallet", player.wallet);
+			game.logger.Log(logging.Entry{
+				Payload: Log{
+					"msg"   : "Auto cashing out...",
+					"game"  : game.id,
+					"wallet": player.wallet,
+				},
+				Severity: logging.Info,
+			});
+
 			game.handleCashOut(player.wallet, true);
 		}
 	};
@@ -242,7 +270,13 @@ func (game *Game) handleGameStart() {
 }
 
 func (game *Game) handleGameCrash() {
-	slog.Info("Crashing game...", "game", game.id);
+	game.logger.Log(logging.Entry{
+		Payload: Log{
+			"msg"   : "Crashing game...",
+			"game"  : game.id,
+		},
+		Severity: logging.Info,
+	});
 
 	game.state = GAMESTATE_CRASHED;
 
@@ -255,12 +289,25 @@ func (game *Game) handleGameCrash() {
 	record, err := game.saveRecord();
 
 	if err != nil {
-		slog.Error("Error saving game record", "err", err);
+		game.logger.Log(logging.Entry{
+			Payload: Log{
+				"msg"  : "Error saving game record.",
+				"game" : game.id,
+				"error": err,
+			},
+			Severity: logging.Error,
+		});
+
 		game.clearTimers();
 		return;
 	}
 
-	slog.Info("Entering game wait state...");
+	game.logger.Log(logging.Entry{
+		Payload: Log{
+			"msg": "Entering game wait state...",
+		},
+		Severity: logging.Info,
+	});
 
 	game.clearTimers();
 	game.commitWaiting();
@@ -289,7 +336,15 @@ func (game *Game) HandlePlaceBet(
 
 	for i := range(game.players) {
 		if game.players[i].wallet == wallet {
-			slog.Warn("Player already joined game");
+			game.logger.Log(logging.Entry{
+				Payload: Log{
+					"msg"   : "Player already joined game...",
+					"game"  : game.id,
+					"wallet": wallet,
+				},
+				Severity: logging.Warning,
+			});
+
 			return ErrPlayerAlreadyJoined;
 		}
 	}
@@ -300,20 +355,29 @@ func (game *Game) HandlePlaceBet(
 	);
 
 	if err != nil {
-		slog.Warn("Failed to determine user balance", "err", err);
+		game.logger.Log(logging.Entry{
+			Payload: Log{
+				"msg"   : "Failed to get user balance",
+				"wallet": wallet,
+				"error" : err,
+			},
+			Severity: logging.Warning,
+		});
+
 		return err;
 	}
 
 	if bal.LessThan(betAmount) {
-		slog.Warn(
-			"Insufficient balance for operation",
-			"betAmount",
-			betAmount,
-			"balance",
-			bal,
-			"currency",
-			currency,
-		);
+		game.logger.Log(logging.Entry{
+			Payload: Log{
+				"msg"      : "Insufficient balance for operation",
+				"wallet"   : wallet,
+				"betAmount": betAmount,
+				"balance"  : bal,
+				"currency" : currency,
+			},
+			Severity: logging.Warning,
+		});
 
 		return err;
 	}
@@ -379,7 +443,16 @@ func (game *Game) handleCashOut(wallet string, auto bool) error {
 		player.betAmount,
 	);
 
-	slog.Info("Player cashed out", "wallet", player.wallet, "payout", payout, "currency", player.currency);
+	game.logger.Log(logging.Entry{
+		Payload: Log{
+			"msg"      : "Player cashed out",
+			"game"     : game.id,
+			"wallet"   : player.wallet,
+			"payout"   : payout,
+			"currency" : player.currency,
+		},
+		Severity: logging.Info,
+	});
 
 	player.cashOut = CashOut{
 		absTime: timeNow,
@@ -407,15 +480,16 @@ func (game *Game) handleCashOut(wallet string, auto bool) error {
 	);
 
 	if err != nil {
-		slog.Error(
-			"Failed to credit win",
-			"wallet",
-			player.wallet,
-			"payout",
-			payout,
-			"currency",
-			player.currency,
-		);
+		game.logger.Log(logging.Entry{
+			Payload: Log{
+				"msg"      : "Failed to credit win",
+				"game"     : game.id,
+				"wallet"   : player.wallet,
+				"payout"   : payout,
+				"currency" : player.currency,
+			},
+			Severity: logging.Error,
+		});
 	}
 
 	observer, ok := game.observers[player.clientId];
@@ -450,7 +524,13 @@ func (game *Game) HandleConnect(client *socket.Socket) {
 	game.observers[client.Id()] = &observer;
 
 	if game.state == GAMESTATE_STOPPED {
-		slog.Info("Entering game wait state...");
+		game.logger.Log(logging.Entry{
+			Payload: Log{
+				"msg": "Entering game wait state...",
+			},
+			Severity: logging.Info,
+		});
+
 		game.createNewGame();
 
 		return;
@@ -517,11 +597,15 @@ func (game *Game) commitWaiting() {
 		);
 
 		if err != nil {
-			slog.Warn(
-				"Unable to take balance for user; removing from game...",
-				"wallet",
-				game.waiting[i].wallet,
-			);
+			game.logger.Log(logging.Entry{
+				Payload: Log{
+					"msg"   : "Unable to take balance for user; removing from game...",
+					"game"  : game.id,
+					"wallet": game.waiting[i].wallet,
+				},
+				Severity: logging.Warning,
+			});
+
 			continue;
 		}
 
