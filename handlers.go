@@ -4,9 +4,9 @@ import (
 	"net/http"
 	"encoding/json"
 
-	"log/slog"
 	"github.com/samott/crash-backend/game"
 	"github.com/zishang520/socket.io/v2/socket"
+	"cloud.google.com/go/logging"
 
 	"github.com/spruceid/siwe-go"
 );
@@ -28,17 +28,30 @@ func nonceHttpHandler(w http.ResponseWriter, r *http.Request) {
 
 func authenticateHandler(
 	client *socket.Socket,
-	_ game.Game /* gameObj */,
+	logger *logging.Logger,
+	_ game.Game,
 	data ...any,
 ) {
-	slog.Info("Client authenticating", "client", client.Id);
+	logger.Log(logging.Entry{
+		Payload: Log{
+			"msg"   : "Client authenticating...",
+			"client": client.Id(),
+		},
+		Severity: logging.Info,
+	});
 
 	var params AuthParams;
 
 	callback, err := validateAuthenticateParams(&params, data...);
 
 	if err != nil {
-		slog.Warn("Invalid parameters", "client", client.Id);
+		logger.Log(logging.Entry{
+			Payload: Log{
+				"msg"   : "Invalid parameters",
+				"client": client.Id(),
+			},
+			Severity: logging.Warning,
+		});
 		client.Disconnect(true);
 		return;
 	}
@@ -46,7 +59,14 @@ func authenticateHandler(
 	wallet, err := authenticateUser(params.message, params.signature);
 
 	if err != nil {
-		slog.Warn("Invalid signature", "client", client.Id);
+		logger.Log(logging.Entry{
+			Payload: Log{
+				"msg"   : "Invalid signature",
+				"client": client.Id(),
+			},
+			Severity: logging.Warning,
+		});
+
 		client.Emit("authenticate", map[string]any{
 			"success": false,
 		});
@@ -56,14 +76,28 @@ func authenticateHandler(
 	token, err := generateToken(wallet);
 
 	if err != nil {
-		slog.Error("Error generating token", "err", err);
+		logger.Log(logging.Entry{
+			Payload: Log{
+				"msg"   : "Error generating token",
+				"client": client.Id(),
+				"error" : err,
+			},
+			Severity: logging.Error,
+		});
+
 		client.Emit("authenticate", map[string]any{
 			"success": false,
 		});
 		return;
 	}
 
-	slog.Info("Authentication successful", "client", client.Id);
+	logger.Log(logging.Entry{
+		Payload: Log{
+			"msg"   : "Authentication successful",
+			"client": client.Id(),
+		},
+		Severity: logging.Info,
+	});
 
 	if callback != nil {
 		callback(
@@ -78,28 +112,53 @@ func authenticateHandler(
 
 func disconnectedHandler(
 	client *socket.Socket,
+	logger *logging.Logger,
 	gameObj game.Game,
 	_ ...any,
 ) {
-	slog.Info("Client disconnected", "client", client);
+	logger.Log(logging.Entry{
+		Payload: Log{
+			"msg"   : "Client disconnected",
+			"client": client.Id(),
+		},
+		Severity: logging.Info,
+	});
+
 	gameObj.HandleDisconnect(client);
 };
 
 func refreshTokenHandler(
 	client *socket.Socket,
 	session Session,
+	logger *logging.Logger,
 	_ game.Game,
 	data ...any,
 ) {
-	slog.Info("Refreshing JWT token", "wallet", session.wallet);
+	logger.Log(logging.Entry{
+		Payload: Log{
+			"msg"   : "Refreshing JWT token",
+			"client": client.Id(),
+			"wallet": session.wallet,
+		},
+		Severity: logging.Info,
+	});
 
 	token, err := generateToken(session.wallet);
 
 	if err != nil {
-		slog.Error("Error generating token", "err", err);
+		logger.Log(logging.Entry{
+			Payload: Log{
+				"msg"   : "Error generating token",
+				"client": client.Id(),
+				"error" : err,
+			},
+			Severity: logging.Error,
+		});
+
 		client.Emit("authenticate", map[string]any{
 			"success": false,
 		});
+
 		return;
 	}
 
@@ -119,17 +178,32 @@ func refreshTokenHandler(
 func placeBetHandler(
 	client *socket.Socket,
 	session Session,
+	logger *logging.Logger,
 	gameObj game.Game,
 	data ...any,
 ) {
-	slog.Info("PlaceBet for user", "wallet", session.wallet);
+	logger.Log(logging.Entry{
+		Payload: Log{
+			"msg"   : "PlaceBet for user",
+			"client": client.Id(),
+			"params": data,
+		},
+		Severity: logging.Info,
+	});
 
 	var params PlaceBetParams;
 
 	callback, err := validatePlaceBetParams(&params, gameObj.GetConfig(), data...);
 
 	if err != nil {
-		slog.Warn("Invalid parameters", "client", client.Id);
+		logger.Log(logging.Entry{
+			Payload: Log{
+				"msg"   : "Invalid parameters",
+				"client": client.Id(),
+			},
+			Severity: logging.Warning,
+		});
+
 		client.Disconnect(true);
 		return;
 	}
@@ -153,12 +227,21 @@ func placeBetHandler(
 }
 
 func cancelBetHandler(
-	_ *socket.Socket,
+	client *socket.Socket,
 	session Session,
+	logger *logging.Logger,
 	gameObj game.Game,
 	data ...any,
 ) {
-	slog.Info("CancelBet for user", "wallet", session.wallet);
+	logger.Log(logging.Entry{
+		Payload: Log{
+			"msg"   : "CancelBet for user",
+			"client": client.Id(),
+			"wallet": session.wallet,
+			"params": data,
+		},
+		Severity: logging.Info,
+	});
 
 	err := gameObj.HandleCancelBet(session.wallet);
 
@@ -175,11 +258,21 @@ func cancelBetHandler(
 }
 
 func cashOutHandler(
-	_ *socket.Socket,
+	client *socket.Socket,
 	session Session,
+	logger *logging.Logger,
 	gameObj game.Game,
-	_ ...any /* data */,
+	data ...any,
 ) {
-	slog.Info("CashOut for user", "wallet", session.wallet);
+	logger.Log(logging.Entry{
+		Payload: Log{
+			"msg"   : "CashOut for user",
+			"client": client.Id(),
+			"wallet": session.wallet,
+			"params": data,
+		},
+		Severity: logging.Info,
+	});
+
 	gameObj.HandleCashOut(session.wallet);
 }
