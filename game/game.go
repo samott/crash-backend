@@ -217,7 +217,7 @@ func (game *Game) handleGameStart() {
 		Severity: logging.Info,
 	});
 
-	if len(game.observers) == 0 {
+	if len(game.waiting) == 0 && len(game.observers) == 0 {
 		game.logger.Log(logging.Entry{
 			Payload: Log{
 				"msg" : "No observers; not starting.",
@@ -240,6 +240,8 @@ func (game *Game) handleGameStart() {
 	});
 
 	game.state = GAMESTATE_RUNNING;
+
+	game.commitWaiting();
 
 	makeCallback := func(player *Player) func() {
 		return func() {
@@ -310,7 +312,6 @@ func (game *Game) handleGameCrash() {
 	});
 
 	game.clearTimers();
-	game.commitWaiting();
 
 	game.Emit(EVENT_GAME_CRASHED, map[string]*CrashedGame{
 		"game": record,
@@ -334,7 +335,7 @@ func (game *Game) HandlePlaceBet(
 		clientId: client.Id(),
 	};
 
-	for i := range(game.players) {
+	for i := range(game.waiting) {
 		if game.players[i].wallet == wallet {
 			game.logger.Log(logging.Entry{
 				Payload: Log{
@@ -382,13 +383,7 @@ func (game *Game) HandlePlaceBet(
 		return err;
 	}
 
-	if game.state == GAMESTATE_WAITING {
-		game.players = append(game.players, &player);
-	} else if (game.state == GAMESTATE_RUNNING) {
-		game.waiting = append(game.waiting, &player);
-	} else {
-		return ErrWrongGameState;
-	}
+	game.waiting = append(game.waiting, &player);
 
 	game.Emit("BetList", map[string]any{
 		"players": game.players,
@@ -494,9 +489,9 @@ func (game *Game) handleCashOut(wallet string, auto bool) error {
 
 	game.emitBalanceUpdate(player, newBalance);
 
-	game.Emit("BetList", map[string]any{
-		"players": game.players,
-		"waiting": game.waiting,
+	game.Emit(EVENT_PLAYER_WON, map[string]any{
+		"wallet"    : player.wallet,
+		"multiplier": multiplier,
 	});
 
 	return nil;
@@ -608,6 +603,11 @@ func (game *Game) commitWaiting() {
 	}
 
 	game.waiting = []*Player{};
+
+	game.Emit("BetList", map[string]any{
+		"players": game.players,
+		"waiting": game.waiting,
+	});
 }
 
 func (game *Game) calculatePayout(
