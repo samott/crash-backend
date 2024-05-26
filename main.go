@@ -348,7 +348,7 @@ func main() {
 		gameObj.HandleConnect(client);
 
 		client.On("authenticate", func(data ...any) {
-			authenticateHandler(client, logger, *gameObj, data...);
+			authenticateHandler(client, logger, gameObj, data...);
 		});
 
 		client.On("disconnected", func(...any) {
@@ -396,19 +396,19 @@ func main() {
 			});
 
 			client.On("refreshToken", func(data ...any) {
-				refreshTokenHandler(client, session, logger, *gameObj, data...);
+				refreshTokenHandler(client, session, logger, gameObj, data...);
 			});
 
 			client.On("placeBet", func(data ...any) {
-				placeBetHandler(client, session, logger, *gameObj, data...);
+				placeBetHandler(client, session, logger, gameObj, data...);
 			});
 
 			client.On("cancelBet", func(data ...any) {
-				cancelBetHandler(client, session, logger, *gameObj, data...);
+				cancelBetHandler(client, session, logger, gameObj, data...);
 			});
 
 			client.On("cashOut", func(data ...any) {
-				cashOutHandler(client, session, logger, *gameObj, data...);
+				cashOutHandler(client, session, logger, gameObj, data...);
 			});
 
 			if callback != nil {

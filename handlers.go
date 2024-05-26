@@ -29,7 +29,7 @@ func nonceHttpHandler(w http.ResponseWriter, r *http.Request) {
 func authenticateHandler(
 	client *socket.Socket,
 	logger *logging.Logger,
-	_ game.Game,
+	_ *game.Game,
 	data ...any,
 ) {
 	logger.Log(logging.Entry{
@@ -113,7 +113,7 @@ func authenticateHandler(
 func disconnectedHandler(
 	client *socket.Socket,
 	logger *logging.Logger,
-	gameObj game.Game,
+	gameObj *game.Game,
 	_ ...any,
 ) {
 	logger.Log(logging.Entry{
@@ -131,7 +131,7 @@ func refreshTokenHandler(
 	client *socket.Socket,
 	session Session,
 	logger *logging.Logger,
-	_ game.Game,
+	_ *game.Game,
 	data ...any,
 ) {
 	logger.Log(logging.Entry{
@@ -179,7 +179,7 @@ func placeBetHandler(
 	client *socket.Socket,
 	session Session,
 	logger *logging.Logger,
-	gameObj game.Game,
+	gameObj *game.Game,
 	data ...any,
 ) {
 	logger.Log(logging.Entry{
@@ -230,7 +230,7 @@ func cancelBetHandler(
 	client *socket.Socket,
 	session Session,
 	logger *logging.Logger,
-	gameObj game.Game,
+	gameObj *game.Game,
 	data ...any,
 ) {
 	logger.Log(logging.Entry{
@@ -261,7 +261,7 @@ func cashOutHandler(
 	client *socket.Socket,
 	session Session,
 	logger *logging.Logger,
-	gameObj game.Game,
+	gameObj *game.Game,
 	data ...any,
 ) {
 	logger.Log(logging.Entry{
