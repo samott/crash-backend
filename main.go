@@ -372,7 +372,16 @@ func main() {
 
 			if err := validateToken(params.token, &session); err != nil {
 				slog.Warn("Invalid session");
-				client.Disconnect(true);
+
+				if callback != nil {
+					callback(
+						[]any{ map[string]any{
+							"success": false,
+						} },
+						nil,
+					);
+				}
+
 				return;
 			}
 
