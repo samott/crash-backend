@@ -46,7 +46,7 @@ func (bank *Bank) DecreaseBalance(
 
 	result, err := tx.Exec(`
 		UPDATE balances
-		SET spent = spent + ?
+		SET spent = spent + CAST(? AS Decimal(32, 18))
 		WHERE wallet = ?
 		AND currency = ?
 		AND (balance - spent - ?) >= 0
@@ -93,7 +93,7 @@ func (bank *Bank) IncreaseBalance(
 
 	result, err := tx.Exec(`
 		UPDATE balances
-		SET gained = gained + ?
+		SET gained = gained + CAST(? AS Decimal(32, 18))
 		WHERE wallet = ?
 		AND currency = ?
 	`, amountStr, wallet, currency);
