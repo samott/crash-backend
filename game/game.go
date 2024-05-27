@@ -336,10 +336,10 @@ func (game *Game) HandlePlaceBet(
 	};
 
 	for i := range(game.waiting) {
-		if game.players[i].wallet == wallet {
+		if game.waiting[i].wallet == wallet {
 			game.logger.Log(logging.Entry{
 				Payload: Log{
-					"msg"   : "Player already joined game...",
+					"msg"   : "Player already joined waitlist...",
 					"game"  : game.id,
 					"wallet": wallet,
 				},
