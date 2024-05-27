@@ -385,10 +385,7 @@ func (game *Game) HandlePlaceBet(
 
 	game.waiting = append(game.waiting, &player);
 
-	game.Emit("BetList", map[string]any{
-		"players": game.players,
-		"waiting": game.waiting,
-	});
+	game.emitBetList();
 
 	return nil;
 }
@@ -403,6 +400,8 @@ func (game *Game) HandleCancelBet(wallet string) error {
 	}
 
 	game.players = slices.Delete(game.players, playerIndex, playerIndex + 1);
+
+	game.emitBetList();
 
 	return nil;
 }
@@ -604,10 +603,7 @@ func (game *Game) commitWaiting() {
 
 	game.waiting = []*Player{};
 
-	game.Emit("BetList", map[string]any{
-		"players": game.players,
-		"waiting": game.waiting,
-	});
+	game.emitBetList();
 }
 
 func (game *Game) calculatePayout(
@@ -709,6 +705,13 @@ func (game *Game) emitBalanceUpdate(player *Player, newBalance decimal.Decimal) 
 			"balance" : newBalance.String(),
 		});
 	}
+}
+
+func (game *Game) emitBetList() {
+	game.Emit("BetList", map[string]any{
+		"players": game.players,
+		"waiting": game.waiting,
+	});
 }
 
 /**
