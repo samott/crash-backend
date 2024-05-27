@@ -124,7 +124,8 @@ func (p *Player) MarshalJSON() ([]byte, error) {
 	return json.Marshal(map[string]any{
 		"betAmount"  : p.betAmount.String(),
 		"currency"   : p.currency,
-		"autoCashOut": p.currency,
+		"autoCashOut": p.autoCashOut.StringFixed(2),
+		"cashOut"    : p.cashOut.multiplier.StringFixed(2),
 		"isCashedOut": p.cashOut.cashedOut,
 		"wallet"     : p.wallet,
 	});
