@@ -391,7 +391,7 @@ func (game *Game) HandlePlaceBet(
 }
 
 func (game *Game) HandleCancelBet(wallet string) error {
-	playerIndex := slices.IndexFunc(game.players, func(p *Player) bool {
+	playerIndex := slices.IndexFunc(game.waiting, func(p *Player) bool {
 		return p.wallet == wallet;
 	});
 
@@ -399,7 +399,7 @@ func (game *Game) HandleCancelBet(wallet string) error {
 		return ErrPlayerNotWaiting;
 	}
 
-	game.players = slices.Delete(game.players, playerIndex, playerIndex + 1);
+	game.waiting = slices.Delete(game.waiting, playerIndex, playerIndex + 1);
 
 	game.emitBetList();
 
