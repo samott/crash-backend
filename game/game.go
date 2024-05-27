@@ -121,10 +121,11 @@ type CrashedGame struct {
 }
 
 func (p *Player) MarshalJSON() ([]byte, error) {
-	return json.Marshal(map[string]string{
+	return json.Marshal(map[string]any{
 		"betAmount"  : p.betAmount.String(),
 		"currency"   : p.currency,
 		"autoCashOut": p.currency,
+		"isCashedOut": p.cashOut.cashedOut,
 		"wallet"     : p.wallet,
 	});
 }
