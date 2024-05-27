@@ -22,9 +22,10 @@ import (
 );
 
 var (
-	ErrPlayerAlreadyJoined = errors.New("player already joined game")
+	ErrUserAlreadyJoined = errors.New("user already joined game")
 	ErrWrongGameState = errors.New("action invalid for current game state")
-	ErrPlayerNotWaiting = errors.New("player not in waiting list")
+	ErrUserNotWaiting = errors.New("user not in waiting list")
+	ErrUserNotPlaying = errors.New("user not playing")
 	ErrAlreadyCashedOut = errors.New("player already cashed out")
 )
 
@@ -346,7 +347,7 @@ func (game *Game) HandlePlaceBet(
 				Severity: logging.Warning,
 			});
 
-			return ErrPlayerAlreadyJoined;
+			return ErrUserAlreadyJoined;
 		}
 	}
 
@@ -396,7 +397,7 @@ func (game *Game) HandleCancelBet(wallet string) error {
 	});
 
 	if playerIndex == -1 {
-		return ErrPlayerNotWaiting;
+		return ErrUserNotWaiting;
 	}
 
 	game.waiting = slices.Delete(game.waiting, playerIndex, playerIndex + 1);
@@ -420,7 +421,7 @@ func (game *Game) handleCashOut(wallet string, auto bool) error {
 	});
 
 	if playerIndex == -1 {
-		return ErrPlayerNotWaiting;
+		return ErrUserNotPlaying;
 	}
 
 	player := game.players[playerIndex];
