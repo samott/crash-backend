@@ -136,7 +136,7 @@ func (g *CrashedGame) MarshalJSON() ([]byte, error) {
 		"id"         : g.id.String(),
 		"startTime"  : g.startTime.Unix(),
 		"duration"   : g.duration.Milliseconds(),
-		"multiplier" : g.multiplier.String(),
+		"multiplier" : g.multiplier.StringFixed(2),
 		"players"    : g.players,
 		"winners"    : g.winners,
 	});
@@ -513,6 +513,12 @@ func (game *Game) HandleConnect(client *socket.Socket) {
 
 	game.observers[client.Id()] = &observer;
 
+	if recentGames, err := game.getRecentGames(10); err == nil {
+		observer.socket.Emit("RecentGameList", map[string]any{
+			"games": recentGames,
+		});
+	}
+
 	if game.state == GAMESTATE_STOPPED {
 		game.logger.Log(logging.Entry{
 			Payload: Log{
@@ -634,30 +640,51 @@ func (game *Game) getRecentGames(limit int) ([]CrashedGame, error) {
 	var games []CrashedGame;
 
 	rows, err := game.db.Query(`
-		SELECT id, startTime, (endTime - startTime) AS duration,
+		SELECT id, FLOOR(UNIX_TIMESTAMP(startTime)) as startTime,
+		CAST(1000*(endTime - startTime) AS INTEGER) AS duration,
 		multiplier, playerCount, winnerCount
 		FROM games
-		ORDER BY created DESC
+		ORDER BY startTime DESC
 		LIMIT ?
 	`, limit);
 
-	for rows.Next() {
-		var gameRow CrashedGame;
-
-		rows.Scan(
-			gameRow.id,
-			gameRow.startTime,
-			gameRow.duration,
-			gameRow.multiplier,
-			gameRow.players,
-			gameRow.winners,
-		);
-
-		games = append(games, gameRow);
+	if err != nil {
+		game.logger.Log(logging.Entry{
+			Payload: Log{
+				"msg"  : "Error fetching recent games",
+				"error": err,
+			},
+			Severity: logging.Error,
+		});
+		return nil, err;
 	}
 
-	if err != nil {
-		return nil, err;
+	for rows.Next() {
+		var gameRow CrashedGame;
+		var startTime int64;
+		var multiplier string;
+		var duration int64;
+
+		rows.Scan(
+			&gameRow.id,
+			&startTime,
+			&duration,
+			&multiplier,
+			&gameRow.players,
+			&gameRow.winners,
+		);
+
+		gameRow.startTime = time.Unix(startTime, 0);
+		gameRow.duration = time.Duration(duration * int64(time.Millisecond));
+		result, err := decimal.NewFromString(multiplier);
+
+		if err == nil {
+			gameRow.multiplier = result;
+		} else {
+			gameRow.multiplier = decimal.Zero;
+		}
+
+		games = append(games, gameRow);
 	}
 
 	return games, nil;
