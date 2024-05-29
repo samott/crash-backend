@@ -1,21 +1,24 @@
-package game;
+package game
 
 import (
-	"time"
-	"math"
+	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
+	"math"
+	"time"
 
-	"slices"
 	"errors"
+	"slices"
+	"strconv"
 
-	"math/big"
+	"crypto/sha256"
 	"crypto/rand"
 
 	"database/sql"
 
+	"cloud.google.com/go/logging"
 	"github.com/google/uuid"
 	"github.com/shopspring/decimal"
-	"cloud.google.com/go/logging"
 	"github.com/zishang520/socket.io/v2/socket"
 
 	"github.com/samott/crash-backend/config"
@@ -97,6 +100,7 @@ type Observer struct {
 
 type Game struct {
 	id uuid.UUID;
+	hash string;
 	state uint;
 	players []*Player;
 	waiting []*Player;
@@ -172,8 +176,58 @@ func (game *Game) GetConfig() (*config.CrashConfig) {
 	return game.config;
 }
 
+func generateRandomSeed(length int) (string, error) {
+	buffer := make([]byte, length);
+	_, err := rand.Read(buffer);
+	if err != nil {
+		return "", err;
+	}
+	result := base64.URLEncoding.EncodeToString(buffer)[:length];
+	return result, nil;
+}
+
+func generateGameHash(seed string) string {
+	s := sha256.New();
+	s.Write([]byte(seed))
+	return  hex.EncodeToString(s.Sum(nil));
+}
+
+func hashToMultiplier(hash string) decimal.Decimal {
+	h, _ := strconv.ParseUint(hash[0:13], 16, 64);
+	e := math.Pow(2, 52);
+	r := math.Floor((98 * e) / (e - float64(h)));
+	m := math.Round(r) / 100;
+
+	if (m < 1) {
+		return decimal.NewFromInt(1);
+	}
+
+	return decimal.NewFromFloat(m).Truncate(2);
+}
+
+func multiplierToDuration(multiplier decimal.Decimal) (time.Duration, error) {
+	r, err := multiplier.Ln(10);
+
+	if err != nil {
+		return time.Duration(0), err;
+	}
+
+	d := decimal.NewFromFloat(6e-5);
+	r = r.Div(d);
+
+	return time.Duration(r.IntPart() * int64(time.Millisecond)), nil;
+}
+
 func (game *Game) createNewGame() {
-	randInt, err := rand.Int(rand.Reader, big.NewInt(10));
+	seed, err := generateRandomSeed(64);
+
+	if err != nil {
+		return;
+	}
+
+	hash := generateGameHash(seed);
+	multiplier := hashToMultiplier(hash);
+	duration, err := multiplierToDuration(multiplier);
 
 	if err != nil {
 		return;
@@ -189,8 +243,9 @@ func (game *Game) createNewGame() {
 	game.state = GAMESTATE_WAITING;
 
 	untilStart := time.Second * WAIT_TIME_SECS;
+	game.hash = hash;
 	game.startTime = time.Now().Add(untilStart);
-	game.duration = time.Duration(time.Second * time.Duration(randInt.Int64()));
+	game.duration = duration;
 	game.endTime = game.startTime.Add(game.duration);
 
 	time.AfterFunc(untilStart, game.handleGameStart);
@@ -237,7 +292,7 @@ func (game *Game) handleGameStart() {
 		Payload: Log{
 			"msg"     : "Starting game...",
 			"game"    : game.id,
-			"duration": game.duration,
+			"duration": game.duration.Seconds(),
 		},
 		Severity: logging.Info,
 	});
