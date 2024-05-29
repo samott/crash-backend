@@ -138,7 +138,7 @@ func (p *Player) MarshalJSON() ([]byte, error) {
 func (g *CrashedGame) MarshalJSON() ([]byte, error) {
 	return json.Marshal(map[string]any{
 		"id"         : g.id.String(),
-		"startTime"  : g.startTime.Unix(),
+		"startTime"  : g.startTime.UnixMilli(),
 		"duration"   : g.duration.Milliseconds(),
 		"multiplier" : g.multiplier.StringFixed(2),
 		"players"    : g.players,
@@ -202,7 +202,7 @@ func hashToMultiplier(hash string) decimal.Decimal {
 		return decimal.NewFromInt(1);
 	}
 
-	return decimal.NewFromFloat(m).Truncate(2);
+	return decimal.NewFromFloat(m).Round(2);
 }
 
 func multiplierToDuration(multiplier decimal.Decimal) (time.Duration, error) {
@@ -262,7 +262,7 @@ func (game *Game) createNewGame() {
 	});
 
 	game.Emit(EVENT_GAME_WAITING, map[string]any{
-		"startTime": game.startTime.Unix(),
+		"startTime": game.startTime.UnixMilli(),
 	});
 }
 
@@ -315,7 +315,6 @@ func (game *Game) handleGameStart() {
 			game.handleCashOut(player.wallet, true);
 		}
 	};
-
 	for i := range(game.players) {
 		if !game.players[i].autoCashOut.Equal(decimal.Zero) {
 			autoCashOut, _ := game.players[i].autoCashOut.Float64();
@@ -325,7 +324,7 @@ func (game *Game) handleGameStart() {
 	}
 
 	game.Emit(EVENT_GAME_RUNNING, map[string]any{
-		"startTime": game.startTime.Unix(),
+		"startTime": game.startTime.UnixMilli(),
 	});
 }
 
@@ -589,7 +588,7 @@ func (game *Game) HandleConnect(client *socket.Socket) {
 
 	if game.state == GAMESTATE_WAITING {
 		observer.socket.Emit(EVENT_GAME_WAITING, map[string]any{
-			"startTime": game.startTime.Unix(),
+			"startTime": game.startTime.UnixMilli(),
 		});
 
 		return;
@@ -677,7 +676,7 @@ func (game *Game) calculatePayout(
 	durationMs := decimal.NewFromInt(duration.Milliseconds());
 	coeff := decimal.NewFromFloat(6E-5);
 	e := decimal.NewFromFloat(math.Exp(1));
-	multiplier := e.Pow(coeff.Mul(durationMs)).Truncate(2);
+	multiplier := e.Pow(coeff.Mul(durationMs)).Round(2);
 
 	return betAmount.Mul(multiplier), multiplier;
 }
@@ -687,7 +686,7 @@ func (game *Game) calculateFinalMultiplier() (decimal.Decimal) {
 	durationMs := decimal.NewFromInt(duration.Milliseconds());
 	coeff := decimal.NewFromFloat(6E-5);
 	e := decimal.NewFromFloat(math.Exp(1));
-	multiplier := e.Pow(coeff.Mul(durationMs)).Truncate(2);
+	multiplier := e.Pow(coeff.Mul(durationMs)).Round(2);
 	return multiplier;
 }
 
@@ -729,7 +728,7 @@ func (game *Game) getRecentGames(limit int) ([]CrashedGame, error) {
 			&gameRow.winners,
 		);
 
-		gameRow.startTime = time.Unix(startTime, 0);
+		gameRow.startTime = time.UnixMilli(startTime);
 		gameRow.duration = time.Duration(duration * int64(time.Millisecond));
 		result, err := decimal.NewFromString(multiplier);
 
