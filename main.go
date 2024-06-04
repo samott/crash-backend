@@ -300,12 +300,48 @@ func main() {
 	defer db.Close();
 
 	ratesSvc := rates.NewService((*rates.RatesConfig)(&config.Rates));
-	_, err = ratesSvc.FetchRates();
+	newRates, err := ratesSvc.FetchRates();
 
 	if err != nil {
 		slog.Error("Failed to fetch rates", "error", err);
 		return;
 	}
+
+	err = ratesSvc.SaveRates(newRates, db);
+
+	if err != nil {
+		slog.Error("Failed to save rates", "error", err);
+		return;
+	}
+
+	var ratesTicker time.Ticker;
+
+	if (config.Timers.RatesCheckFrequencyMins > 0) {
+		ratesTicker := time.NewTicker(time.Duration(config.Timers.RatesCheckFrequencyMins) * time.Minute);
+
+		go func() {
+			for range ratesTicker.C {
+				logger.Log(logging.Entry{
+					Payload: Log{
+						"msg": "Fetching currency rates...",
+					},
+					Severity: logging.Info,
+				});
+
+				newRates, err := ratesSvc.FetchRates();
+
+				if err != nil {
+					ratesSvc.SaveRates(newRates, db);
+				}
+			}
+		}();
+	}
+
+	defer func() {
+		if (config.Timers.RatesCheckFrequencyMins > 0) {
+			ratesTicker.Stop();
+		}
+	}();
 
 	options := socket.DefaultServerOptions();
 	options.SetAllowEIO3(true)
