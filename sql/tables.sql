@@ -1,3 +1,4 @@
+DROP TABLE IF EXISTS `rates`;
 DROP TABLE IF EXISTS `ledger`;
 DROP TABLE IF EXISTS `users`;
 DROP TABLE IF EXISTS `bets`;
@@ -44,4 +45,11 @@ CREATE TABLE `ledger` (
 	`change` Decimal(32, 18) NOT NULL,
 	`gameId` uuid NOT NULL,
 	FOREIGN KEY(`gameId`) REFERENCES `bets`(`id`)
+);
+
+CREATE TABLE `rates` (
+	`base` varchar(32) NOT NULL,
+	`target` varchar(32) NOT NULL,
+	`ratio` Decimal(32, 18) unsigned NOT NULL,
+	UNIQUE (`base`, `target`)
 );
