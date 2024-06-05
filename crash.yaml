@@ -30,3 +30,6 @@ rates:
   fiats:
     - "usd"
     - "eur"
+
+timers:
+  ratesCheckFrequencyMins: 0
