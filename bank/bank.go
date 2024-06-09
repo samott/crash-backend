@@ -11,6 +11,7 @@ import (
 )
 
 var (
+	ErrUnableToWithdrawBalance = errors.New("Unable to withdraw balance")
 	ErrUnableToDecreaseBalance = errors.New("Unable to decrease balance")
 	ErrUnableToIncreaseBalance = errors.New("Unable to increase balance")
 	ErrBalanceRecordNotFound = errors.New("Balance record not found");
@@ -49,7 +50,7 @@ func (bank *Bank) DecreaseBalance(
 		SET spent = spent + CAST(? AS Decimal(32, 18))
 		WHERE wallet = ?
 		AND currency = ?
-		AND (balance - spent - ?) >= 0
+		AND (balance - spent - withdrawn - ?) >= 0
 	`, amountStr, wallet, currency, amountStr);
 
 	if err != nil {
@@ -120,6 +121,53 @@ func (bank *Bank) IncreaseBalance(
 	return bank.GetBalance(wallet, currency);
 }
 
+func (bank *Bank) WithdrawBalance(
+	wallet string,
+	currency string,
+	amount decimal.Decimal,
+	gameId uuid.UUID,
+) (decimal.Decimal, error) {
+	amountStr := amount.String();
+	amountNegStr := amount.Neg().String();
+
+	tx, err := bank.db.BeginTx(context.Background(), nil);
+
+	if err != nil {
+		return decimal.Zero, err;
+	}
+
+	defer tx.Rollback();
+
+	result, err := tx.Exec(`
+		UPDATE balances
+		SET withdrawn = withdrawn + CAST(? AS Decimal(32, 18))
+		WHERE wallet = ?
+		AND currency = ?
+		AND (balance - spent - withdrawn - ?) >= 0
+	`, amountStr, wallet, currency, amountStr);
+
+	if err != nil {
+		return decimal.Zero, err;
+	}
+
+	if rows, err := result.RowsAffected(); rows == 0 || err != nil {
+		return decimal.Zero, ErrUnableToWithdrawBalance;
+	}
+
+	result, err = tx.Exec(`
+		INSERT INTO ledger
+		(wallet, currency, change, reason, gameId)
+		VALUES
+		(?, ?, ?, ?)
+	`, wallet, currency, amountNegStr, "Withdrawal", gameId.String());
+
+	if err := tx.Commit(); err != nil {
+		return decimal.Zero, nil;
+	}
+
+	return bank.GetBalance(wallet, currency);
+}
+
 func (bank *Bank) GetBalance(
 	wallet string,
 	currency string,
@@ -127,7 +175,7 @@ func (bank *Bank) GetBalance(
 	var balanceStr string;
 
 	rows, err := bank.db.Query(`
-		SELECT balance + gained - spent AS balance
+		SELECT balance + gained - spent - withdrawn AS balance
 		FROM balances
 		WHERE wallet = ?
 		AND currency = ?
@@ -161,7 +209,7 @@ func (bank *Bank) GetBalances(
 	balances := make(map[string]decimal.Decimal);
 
 	rows, err := bank.db.Query(`
-		SELECT currency, balance + gained - spent AS balance
+		SELECT currency, balance + gained - spent - withdrawn AS balance
 		FROM balances
 		WHERE wallet = ?
 	`, wallet);

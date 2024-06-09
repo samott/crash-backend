@@ -34,6 +34,7 @@ CREATE TABLE `balances` (
 	`currency` varchar(32) NOT NULL,
 	`gained` Decimal(32, 18) unsigned NOT NULL DEFAULT 0,
 	`spent` Decimal(32, 18) unsigned NOT NULL DEFAULT 0,
+	`withdrawn` Decimal(32, 18) unsigned NOT NULL DEFAULT 0,
 	`balance` Decimal(32, 18) unsigned NOT NULL DEFAULT 0,
 	UNIQUE (`wallet`, `currency`)
 );

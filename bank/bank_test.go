@@ -133,3 +133,37 @@ func TestDecreaseBalance(t *testing.T) {
 		t.Fatal("GetBalance() result is incorrect");
 	}
 }
+
+func TestWithdrawBalance(t *testing.T) {
+	randomUser, err := crypto.GenerateKey();
+	wallet := crypto.PubkeyToAddress(randomUser.PublicKey).String();
+
+	_, err = bankObj.db.Exec(`
+		INSERT INTO balances
+		(currency, balance, wallet)
+		VALUES
+		(?, ?, ?)
+	`, "eth", "100", wallet);
+
+	amount, err := decimal.NewFromString("17.16");
+
+	if err != nil {
+		t.Fatal("Failed to create decimal");
+	}
+
+	gameId, err := uuid.NewV7();
+
+	if err != nil {
+		t.Fatal("Failed to create uuid");
+	}
+
+	balance, err := bankObj.WithdrawBalance(wallet, "eth", amount, gameId);
+
+	if err != nil {
+		t.Fatal("Failed to withdraw balance");
+	}
+
+	if balance.StringFixed(2) != "82.84" {
+		t.Fatal("GetBalance() result is incorrect");
+	}
+}
