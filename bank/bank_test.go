@@ -151,13 +151,7 @@ func TestWithdrawBalance(t *testing.T) {
 		t.Fatal("Failed to create decimal");
 	}
 
-	gameId, err := uuid.NewV7();
-
-	if err != nil {
-		t.Fatal("Failed to create uuid");
-	}
-
-	balance, err := bankObj.WithdrawBalance(wallet, "eth", amount, gameId);
+	balance, err := bankObj.WithdrawBalance(wallet, "eth", amount);
 
 	if err != nil {
 		t.Fatal("Failed to withdraw balance");

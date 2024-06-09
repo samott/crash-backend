@@ -125,7 +125,6 @@ func (bank *Bank) WithdrawBalance(
 	wallet string,
 	currency string,
 	amount decimal.Decimal,
-	gameId uuid.UUID,
 ) (decimal.Decimal, error) {
 	amountStr := amount.String();
 	amountNegStr := amount.Neg().String();
@@ -158,8 +157,8 @@ func (bank *Bank) WithdrawBalance(
 		INSERT INTO ledger
 		(wallet, currency, change, reason, gameId)
 		VALUES
-		(?, ?, ?, ?)
-	`, wallet, currency, amountNegStr, "Withdrawal", gameId.String());
+		(?, ?, ?, NULL)
+	`, wallet, currency, amountNegStr, "Withdrawal");
 
 	if err := tx.Commit(); err != nil {
 		return decimal.Zero, nil;
