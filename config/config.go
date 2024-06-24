@@ -35,6 +35,10 @@ type CrashConfig struct {
 		ProjectId string `yaml:"projectId"`;
 		LogId string `yaml:"logId"`;
 	}
+
+	Timers struct {
+		RatesCheckFrequencyMins int `yaml:"ratesCheckFrequencyMins"`;
+	}
 };
 
 func LoadConfig(configFile string) (*CrashConfig, error) {
