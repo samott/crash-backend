@@ -24,6 +24,8 @@ type CrashConfig struct {
 
 	Currencies map[string]CurrencyDef `yaml:"currencies"`;
 
+	Contracts map[string]string `yaml:"contracts"`;
+
 	Rates struct {
 		ApiKey string `yaml:"apiKey"`;
 		Cryptos map[string]string `yaml:"cryptos"`;

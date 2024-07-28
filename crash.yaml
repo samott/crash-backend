@@ -22,6 +22,9 @@ currencies:
     units: "BTC"
     coinId: 2
 
+contracts:
+  crash: "0x1111111111111111111111111111111111111111"
+
 rates:
   apiKey: ""
   cryptos:
