@@ -19,7 +19,7 @@ func init() {
 	config, err := config.LoadConfig("../crash.yaml");
 
 	if err != nil {
-		log.Fatal("failed to load config");
+		log.Fatal("failed to load config", err);
 	}
 
 	dbConfig := mysql.Config{
