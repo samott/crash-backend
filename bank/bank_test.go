@@ -20,7 +20,7 @@ func init() {
 	config, err := config.LoadConfig("../crash.yaml");
 
 	if err != nil {
-		log.Fatal("Failed to load config", err);
+		log.Fatal("Failed to load config: ", err);
 	}
 
 	dbConfig := mysql.Config{
@@ -33,14 +33,14 @@ func init() {
 	db, err := sql.Open("mysql", dbConfig.FormatDSN());
 
 	if err != nil {
-		log.Fatal("Failed to connect to database", "error", err)
+		log.Fatal("Failed to connect to database: ", err)
 		return;
 	}
 
 	bankObj, err = NewBank(db);
 
 	if err != nil {
-		log.Fatal("Bank construction failed", err);
+		log.Fatal("Bank construction failed: ", err);
 	}
 }
 

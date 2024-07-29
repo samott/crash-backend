@@ -29,7 +29,7 @@ func TestFetchRates(t *testing.T) {
 	result, err := ratesSvc.FetchRates();
 
 	if err != nil {
-		t.Fatal("Rates returned error", err);
+		t.Fatal("Rates returned error: ", err);
 	}
 
 	if _, ok := result["btc"]; !ok { t.Fatal("Missing btc in result"); }
@@ -78,7 +78,7 @@ func TestFetchRatesWithMissingCurrency(t *testing.T) {
 	_, err := ratesSvc.FetchRates();
 
 	if err == nil {
-		t.Fatal("Rates improperly accepted result with missing currency", err);
+		t.Fatal("Rates improperly accepted result with missing currency: ", err);
 	}
 }
 
@@ -103,7 +103,7 @@ func TestFetchRatesWithMissingFiat(t *testing.T) {
 	_, err := ratesSvc.FetchRates();
 
 	if err == nil {
-		t.Fatal("Rates improperly accepted result with missing fiat currency", err);
+		t.Fatal("Rates improperly accepted result with missing fiat currency: ", err);
 	}
 }
 
@@ -129,6 +129,6 @@ func TestFetchRatesWithInvalid(t *testing.T) {
 	_, err := ratesSvc.FetchRates();
 
 	if err == nil {
-		t.Fatal("Rates improperly parsed invalid response", err);
+		t.Fatal("Rates improperly parsed invalid response: ", err);
 	}
 }
