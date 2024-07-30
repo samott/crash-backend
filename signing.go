@@ -4,6 +4,7 @@ import (
 	"log"
 	"fmt"
 	"encoding/hex"
+	"crypto/ecdsa"
 	"github.com/shopspring/decimal"
 
 	"github.com/samott/crash-backend/config"
@@ -70,7 +71,14 @@ func createWithdrawalRequest(
 		Message:     message,
 	}
 
-	sig, err := signTypedData(typedData);
+	// addr = 0x5630f29Bd82793801446b3deF50B0Fd50F972252
+	privateKey, err := crypto.HexToECDSA("cbfc67bba0255709891f5feebc584462aa2966bbf60d2e000d6ff215cfe48610");
+
+	if err != nil {
+		log.Fatal("Error loading private key: ", err);
+	}
+
+	sig, err := signTypedData(typedData, privateKey);
 
 	if err != nil {
 		return "", err;
@@ -81,14 +89,7 @@ func createWithdrawalRequest(
 	return sigStr, nil;
 }
 
-func signTypedData(data apitypes.TypedData) ([]byte, error) {
-	// addr = 0x5630f29Bd82793801446b3deF50B0Fd50F972252
-	privateKey, err := crypto.HexToECDSA("cbfc67bba0255709891f5feebc584462aa2966bbf60d2e000d6ff215cfe48610");
-
-	if err != nil {
-		log.Fatal("Error loading private key: ", err);
-	}
-
+func signTypedData(data apitypes.TypedData, privateKey *ecdsa.PrivateKey) ([]byte, error) {
 	domainSeparator, err := data.HashStruct("EIP712Domain", data.Domain.Map());
 
 	if err != nil {
