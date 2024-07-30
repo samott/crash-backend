@@ -9,6 +9,7 @@ type CurrencyDef struct {
 	Name string `yaml:"name"`;
 	Units string `yaml:"units"`;
 	CoinId uint32 `yaml:"coinId"`;
+	Decimals uint `yaml:"decimals"`;
 }
 
 type CrashConfig struct {
