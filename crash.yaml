@@ -24,9 +24,6 @@ currencies:
     coinId: 2
     decimals: 8
 
-contracts:
-  crash: "0x1111111111111111111111111111111111111111"
-
 rates:
   apiKey: ""
   cryptos:
@@ -35,6 +32,11 @@ rates:
   fiats:
     - "usd"
     - "eur"
+
+onChain:
+  rpcUrl: "https://polygon.llamarpc.com"
+  chainId: "0x89"
+  contract: "0x1111111111111111111111111111111111111111"
 
 timers:
   ratesCheckFrequencyMins: 0

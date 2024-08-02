@@ -25,8 +25,6 @@ type CrashConfig struct {
 
 	Currencies map[string]CurrencyDef `yaml:"currencies"`;
 
-	Contracts map[string]string `yaml:"contracts"`;
-
 	Rates struct {
 		ApiKey string `yaml:"apiKey"`;
 		Cryptos map[string]string `yaml:"cryptos"`;
@@ -37,6 +35,12 @@ type CrashConfig struct {
 		LocalOnly bool `yaml:"localOnly"`;
 		ProjectId string `yaml:"projectId"`;
 		LogId string `yaml:"logId"`;
+	}
+
+	OnChain struct {
+		RpcUrl string `yaml:"rpcUrl"`;
+		ChainId string `yaml:"chainId"`;
+		Contract string `yaml:"contract"`;
 	}
 
 	Timers struct {
