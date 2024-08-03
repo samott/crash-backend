@@ -4,6 +4,7 @@ DROP TABLE IF EXISTS `users`;
 DROP TABLE IF EXISTS `bets`;
 DROP TABLE IF EXISTS `games`;
 DROP TABLE IF EXISTS `balances`;
+DROP TABLE IF EXISTS `withdrawals`;
 
 CREATE TABLE `games` (
 	`id` uuid PRIMARY KEY NOT NULL,
@@ -57,10 +58,12 @@ CREATE TABLE `rates` (
 
 CREATE TABLE `withdrawals` (
 	`id` bigint PRIMARY KEY NOT NULL AUTO_INCREMENT,
+	`nonce` integer NOT NULL,
 	`wallet` char(42) NOT NULL,
 	`currency` varchar(32) NOT NULL,
 	`txHash` char(66),
 	`signature` text,
 	`request` text,
-	`created` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3)
+	`created` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+	UNIQUE(`wallet`, `nonce`)
 );
