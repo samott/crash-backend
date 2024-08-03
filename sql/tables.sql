@@ -54,3 +54,13 @@ CREATE TABLE `rates` (
 	`ratio` Decimal(32, 18) unsigned NOT NULL,
 	UNIQUE (`base`, `target`)
 );
+
+CREATE TABLE `withdrawals` (
+	`id` bigint PRIMARY KEY NOT NULL AUTO_INCREMENT,
+	`wallet` char(42) NOT NULL,
+	`currency` varchar(32) NOT NULL,
+	`txHash` char(66),
+	`signature` text,
+	`request` text,
+	`created` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3)
+);
