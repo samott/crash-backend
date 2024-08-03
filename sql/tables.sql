@@ -60,6 +60,7 @@ CREATE TABLE `withdrawals` (
 	`id` bigint PRIMARY KEY NOT NULL AUTO_INCREMENT,
 	`nonce` integer NOT NULL,
 	`wallet` char(42) NOT NULL,
+	`amount` Decimal(32, 18) unsigned NOT NULL,
 	`currency` varchar(32) NOT NULL,
 	`txHash` char(66),
 	`signature` text,
