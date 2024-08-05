@@ -63,8 +63,8 @@ CREATE TABLE `withdrawals` (
 	`amount` Decimal(32, 18) unsigned NOT NULL,
 	`currency` varchar(32) NOT NULL,
 	`txHash` char(66),
-	`signature` text,
-	`request` text,
+	`signature` text NOT NULL,
+	`request` text NOT NULL,
 	`created` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
 	UNIQUE(`wallet`, `nonce`)
 );
