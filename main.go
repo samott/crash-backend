@@ -52,6 +52,11 @@ type PlaceBetParams struct {
 	currency string;
 }
 
+type WithdrawParams struct {
+	amount decimal.Decimal;
+	currency string;
+}
+
 type LoginParams struct {
 	token string;
 }
@@ -215,6 +220,48 @@ func validatePlaceBetParams(
 	*result = PlaceBetParams{
 		betAmount: betAmount,
 		autoCashOut: autoCashOut,
+		currency: currency,
+	};
+
+	callback := extractCallback(1, data...);
+
+	return callback, nil;
+}
+
+func validateWithdrawParams(
+	result *WithdrawParams,
+	config *config.CrashConfig,
+	data ...any,
+) (func([]any, error), error) {
+	if len(data) == 0 {
+		return nil, ErrInvalidParameters;
+	}
+
+	params, ok := data[0].(map[string]any);
+
+	if !ok {
+		return nil, ErrInvalidParameters;
+	}
+
+	amountStr, ok1 := params["betAmount"].(string);
+	currency, ok2 := params["currency"].(string);
+
+	if !ok1 || !ok2 {
+		return nil, ErrInvalidParameters;
+	}
+
+	amount, err := decimal.NewFromString(amountStr);
+
+	if err != nil {
+		return nil, ErrInvalidDecimalValue;
+	}
+
+	if _, ok := config.Currencies[currency]; !ok {
+		return nil, ErrInvalidCurrency;
+	}
+
+	*result = WithdrawParams{
+		amount: amount,
 		currency: currency,
 	};
 
@@ -445,6 +492,10 @@ func main() {
 
 			client.On("cashOut", func(data ...any) {
 				cashOutHandler(client, session, logger, gameObj, data...);
+			});
+
+			client.On("withdraw", func(data ...any) {
+				withdrawHandler(client, session, logger, bankObj, config, data...);
 			});
 
 			if callback != nil {

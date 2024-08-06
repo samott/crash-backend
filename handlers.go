@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 
 	"github.com/samott/crash-backend/game"
+	"github.com/samott/crash-backend/bank"
+	"github.com/samott/crash-backend/config"
 	"github.com/zishang520/socket.io/v2/socket"
 	"cloud.google.com/go/logging"
 
@@ -275,4 +277,97 @@ func cashOutHandler(
 	});
 
 	gameObj.HandleCashOut(session.wallet);
+}
+
+func withdrawHandler(
+	client *socket.Socket,
+	session Session,
+	logger *logging.Logger,
+	bankObj *bank.Bank,
+	cfg *config.CrashConfig,
+	data ...any,
+) {
+	logger.Log(logging.Entry{
+		Payload: Log{
+			"msg"   : "Withdraw for user",
+			"client": client.Id(),
+			"params": data,
+		},
+		Severity: logging.Info,
+	});
+
+	var params WithdrawParams;
+
+	callback, err := validateWithdrawParams(&params, cfg, data...);
+
+	if err != nil {
+		logger.Log(logging.Entry{
+			Payload: Log{
+				"msg"   : "Invalid parameters",
+				"client": client.Id(),
+			},
+			Severity: logging.Warning,
+		});
+
+		client.Disconnect(true);
+		return;
+	}
+
+	balance, err := bankObj.GetBalance(
+		session.wallet,
+		params.currency,
+	);
+
+	if err != nil {
+		if callback != nil {
+			callback(
+				[]any{ map[string]any{
+					"success": false,
+					"errorCode": "INTERNAL_ERROR",
+				} },
+				nil,
+			);
+		}
+		return;
+	}
+
+	if balance.LessThan(params.amount) {
+		if callback != nil {
+			callback(
+				[]any{ map[string]any{
+					"success": false,
+					"errorCode": "INSUFFICIENT_BALANCE",
+				} },
+				nil,
+			);
+		}
+		return;
+	}
+
+	_, err = bankObj.WithdrawBalance(
+		session.wallet,
+		params.currency,
+		params.amount,
+	);
+
+	if err != nil {
+		if callback != nil {
+			callback(
+				[]any{ map[string]any{
+					"success": false,
+				} },
+				nil,
+			);
+		}
+		return;
+	}
+
+	if callback != nil {
+		callback(
+			[]any{ map[string]any{
+				"success": err == nil,
+			} },
+			nil,
+		);
+	}
 }
