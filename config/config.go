@@ -41,7 +41,7 @@ type CrashConfig struct {
 		RpcUrl string `yaml:"rpcUrl"`;
 		ChainId string `yaml:"chainId"`;
 		Contract string `yaml:"contract"`;
-	}
+	} `yaml:"onChain"`
 
 	Timers struct {
 		RatesCheckFrequencyMins int `yaml:"ratesCheckFrequencyMins"`;
