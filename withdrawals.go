@@ -102,7 +102,7 @@ func createWithdrawalRequest(
 		return "", err;
 	}
 
-	sigStr := hex.EncodeToString(sig);
+	sigStr := "0x" + hex.EncodeToString(sig);
 
 	return sigStr, nil;
 }
