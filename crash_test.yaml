@@ -1,0 +1,42 @@
+database:
+  username: "crash"
+  password: ""
+  database: "crash"
+  hostname: "localhost"
+
+cors:
+  origin: "http://127.0.0.53:11130"
+
+logging:
+  localOnly: true
+  projectId: "project-123"
+  logId: "crash"
+
+currencies:
+  eth:
+    name: "Ethereum"
+    units: "ETH"
+    coinId: 1
+    decimals: 18
+  btc:
+    name: "Bitcoin"
+    units: "BTC"
+    coinId: 2
+    decimals: 8
+
+rates:
+  apiKey: ""
+  cryptos:
+    eth: "ethereum"
+    btc: "bitcoin"
+  fiats:
+    - "usd"
+    - "eur"
+
+onChain:
+  rpcUrl: "https://polygon.llamarpc.com"
+  chainId: "0x89"
+  contract: "0x1111111111111111111111111111111111111111"
+
+timers:
+  ratesCheckFrequencyMins: 0
