@@ -70,8 +70,9 @@ func createWithdrawalRequest(
 
 	coinId := decimal.NewFromInt(int64(cfg.Currencies[currency].CoinId));
 	decNonce := decimal.NewFromInt(int64(nonce));
+	decimals :=  int64(cfg.Currencies[currency].Decimals);
 
-	scale := decimal.NewFromInt(10).Pow(decimal.NewFromInt(18));
+	scale := decimal.NewFromInt(10).Pow(decimal.NewFromInt(decimals));
 
 	message := apitypes.TypedDataMessage{
 		"user":   wallet,
