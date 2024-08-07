@@ -37,22 +37,39 @@ var types = apitypes.Types{
 	},
 }
 
+type Task struct {
+	taskType int8;
+	user string;
+	coinId string;
+	amount string;
+	nonce string;
+}
+
+type WithdrawalRequest struct {
+	user string;
+	coinid string;
+	amount string;
+	nonce string;
+	tasks []Task;
+}
+
 func createWithdrawalRequest(
 	wallet string,
 	amount decimal.Decimal,
 	currency string,
-	contract string,
 	chainId int64,
+	nonce int64,
 	cfg *config.CrashConfig,
 ) (string, error) {
 	domain := apitypes.TypedDataDomain{
 		Name:              "Crash",
 		Version:           "1.0",
 		ChainId:           math.NewHexOrDecimal256(chainId),
-		VerifyingContract: contract,
+		VerifyingContract: cfg.OnChain.Contract,
 	};
 
 	coinId := decimal.NewFromInt(int64(cfg.Currencies[currency].CoinId));
+	decNonce := decimal.NewFromInt(int64(nonce));
 
 	scale := decimal.NewFromInt(10).Pow(decimal.NewFromInt(18));
 
@@ -60,7 +77,7 @@ func createWithdrawalRequest(
 		"user":   wallet,
 		"coinId": coinId.String(),
 		"amount": amount.Mul(scale).String(),
-		"nonce":  "0",
+		"nonce":  decNonce.String(),
 		"tasks":  []map[string]any{},
 	};
 
