@@ -17,7 +17,7 @@ import (
 var bankObj *Bank;
 
 func init() {
-	config, err := config.LoadConfig("../crash.yaml");
+	config, err := config.LoadConfig("../crash_test.yaml");
 
 	if err != nil {
 		log.Fatal("Failed to load config: ", err);

@@ -16,7 +16,7 @@ import (
 var gameObj *Game;
 
 func init() {
-	config, err := config.LoadConfig("../crash.yaml");
+	config, err := config.LoadConfig("../crash_test.yaml");
 
 	if err != nil {
 		log.Fatal("failed to load config: ", err);
