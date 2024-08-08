@@ -17,6 +17,8 @@ var (
 	ErrBalanceRecordNotFound = errors.New("Balance record not found");
 )
 
+type TxCallback func(*sql.Tx) error;
+
 type Bank struct {
 	db *sql.DB;
 };
@@ -65,7 +67,7 @@ func (bank *Bank) DecreaseBalance(
 		INSERT INTO ledger
 		(wallet, currency, change, reason, gameId)
 		VALUES
-		(?, ?, ?, ?)
+		(?, ?, CAST(? AS Decimal(32, 18)), ?, ?)
 	`, wallet, currency, amountNegStr, reason, gameId.String());
 
 	if err := tx.Commit(); err != nil {
@@ -111,7 +113,7 @@ func (bank *Bank) IncreaseBalance(
 		INSERT INTO ledger
 		(wallet, currency, change, reason, gameId)
 		VALUES
-		(?, ?, ?, ?)
+		(?, ?, CAST(? AS Decimal(32, 18)), ?, ?)
 	`, wallet, currency, amountStr, reason, gameId.String());
 
 	if err := tx.Commit(); err != nil {
@@ -125,6 +127,7 @@ func (bank *Bank) WithdrawBalance(
 	wallet string,
 	currency string,
 	amount decimal.Decimal,
+	txCallback TxCallback,
 ) (decimal.Decimal, error) {
 	amountStr := amount.String();
 	amountNegStr := amount.Neg().String();
@@ -157,8 +160,16 @@ func (bank *Bank) WithdrawBalance(
 		INSERT INTO ledger
 		(wallet, currency, change, reason, gameId)
 		VALUES
-		(?, ?, ?, NULL)
+		(?, ?, CAST(? AS Decimal(32, 18)), ?, NULL)
 	`, wallet, currency, amountNegStr, "Withdrawal");
+
+	if (txCallback != nil) {
+		err = txCallback(tx);
+
+		if err != nil {
+			return decimal.Zero, ErrUnableToWithdrawBalance;
+		}
+	}
 
 	if err := tx.Commit(); err != nil {
 		return decimal.Zero, nil;
