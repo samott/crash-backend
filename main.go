@@ -495,7 +495,7 @@ func main() {
 			});
 
 			client.On("withdraw", func(data ...any) {
-				withdrawHandler(client, session, logger, bankObj, config, data...);
+				withdrawHandler(client, session, logger, bankObj, config, db, data...);
 			});
 
 			if callback != nil {
