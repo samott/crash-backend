@@ -35,7 +35,7 @@ rates:
 
 onChain:
   rpcUrl: "https://polygon.llamarpc.com"
-  chainId: "0x89"
+  chainId: 137
   contract: "0x2222222222222222222222222222222222222222"
 
 timers:

@@ -39,7 +39,7 @@ type CrashConfig struct {
 
 	OnChain struct {
 		RpcUrl string `yaml:"rpcUrl"`;
-		ChainId string `yaml:"chainId"`;
+		ChainId int64 `yaml:"chainId"`;
 		Contract string `yaml:"contract"`;
 	} `yaml:"onChain"`
 
