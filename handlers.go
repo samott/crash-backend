@@ -381,13 +381,6 @@ func withdrawHandler(
 		saveWithdrawal,
 	);
 
-	_, err = bankObj.WithdrawBalance(
-		session.wallet,
-		params.currency,
-		params.amount,
-		nil,
-	);
-
 	if err != nil {
 		if callback != nil {
 			callback(
