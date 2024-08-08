@@ -1,17 +1,20 @@
 package main
 
 import (
-	"log"
-	"fmt"
-	"encoding/hex"
 	"crypto/ecdsa"
+	"database/sql"
+	"encoding/hex"
+	"encoding/json"
+	"fmt"
+	"log"
+
 	"github.com/shopspring/decimal"
 
 	"github.com/samott/crash-backend/config"
 
+	"github.com/ethereum/go-ethereum/common/math"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/signer/core/apitypes"
-	"github.com/ethereum/go-ethereum/common/math"
 )
 
 var types = apitypes.Types{
@@ -47,7 +50,7 @@ type Task struct {
 
 type WithdrawalRequest struct {
 	user string;
-	coinid string;
+	coinId string;
 	amount string;
 	nonce string;
 	tasks []Task;
@@ -60,7 +63,7 @@ func createWithdrawalRequest(
 	chainId int64,
 	nonce int64,
 	cfg *config.CrashConfig,
-) (string, error) {
+) (*WithdrawalRequest, string, error) {
 	domain := apitypes.TypedDataDomain{
 		Name:              "Crash",
 		Version:           "1.0",
@@ -70,7 +73,7 @@ func createWithdrawalRequest(
 
 	coinId := decimal.NewFromInt(int64(cfg.Currencies[currency].CoinId));
 	decNonce := decimal.NewFromInt(int64(nonce));
-	decimals :=  int64(cfg.Currencies[currency].Decimals);
+	decimals := int64(cfg.Currencies[currency].Decimals);
 
 	scale := decimal.NewFromInt(10).Pow(decimal.NewFromInt(decimals));
 
@@ -99,12 +102,20 @@ func createWithdrawalRequest(
 	sig, err := signTypedData(typedData, privateKey);
 
 	if err != nil {
-		return "", err;
+		return nil, "", err;
 	}
 
 	sigStr := "0x" + hex.EncodeToString(sig);
 
-	return sigStr, nil;
+	req := WithdrawalRequest{
+		user: wallet,
+		coinId: coinId.String(),
+		amount: amount.String(),
+		nonce: decNonce.String(),
+		tasks: []Task{},
+	};
+
+	return &req, sigStr, nil;
 }
 
 func signTypedData(data apitypes.TypedData, privateKey *ecdsa.PrivateKey) ([]byte, error) {
@@ -135,4 +146,54 @@ func signTypedData(data apitypes.TypedData, privateKey *ecdsa.PrivateKey) ([]byt
 	}
 
 	return signature, nil;
+}
+
+func saveWithdrawalRequest(
+	req *WithdrawalRequest,
+	sig string,
+	tx *sql.Tx,
+) (error) {
+	reqStr, err := json.Marshal(req);
+
+	if err != nil {
+		return err;
+	}
+
+	_, err = tx.Exec(`
+		INSERT INTO withdrawals
+		(wallet, nonce, amount, currency, signature, request)
+		VALUES
+		(?, ?, ?, ?, ?, ?)
+	`, req.user, req.nonce, req.amount, sig, reqStr);
+
+	return err;
+}
+
+func getNextNonce(
+	db *sql.DB,
+	wallet string,
+) (int64, error) {
+	var nonce int64;
+
+	rows, err := db.Query(`
+		SELECT MAX(nonce)
+		FROM withdrawals
+		WHERE wallet = ?
+		GROUP BY wallet
+		LIMIT 1
+	`, wallet);
+
+	if err != nil {
+		return 0, err;
+	}
+
+	defer rows.Close();
+
+	if !rows.Next() {
+		return 0, nil;
+	}
+
+	rows.Scan(&nonce);
+
+	return nonce, nil;
 }

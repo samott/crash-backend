@@ -33,7 +33,7 @@ func init() {
 func TestWithdrawal(t *testing.T) {
 	amount, _ := decimal.NewFromString("1");
 
-	sig, err := createWithdrawalRequest(
+	_, sig, err := createWithdrawalRequest(
 		"0x1111111111111111111111111111111111111111",
 		amount,
 		"eth",

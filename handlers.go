@@ -3,6 +3,7 @@ package main;
 import (
 	"net/http"
 	"encoding/json"
+	"database/sql"
 
 	"github.com/samott/crash-backend/game"
 	"github.com/samott/crash-backend/bank"
@@ -285,6 +286,7 @@ func withdrawHandler(
 	logger *logging.Logger,
 	bankObj *bank.Bank,
 	cfg *config.CrashConfig,
+	db *sql.DB,
 	data ...any,
 ) {
 	logger.Log(logging.Entry{
@@ -344,10 +346,46 @@ func withdrawHandler(
 		return;
 	}
 
+	nonce, err := getNextNonce(db, session.wallet);
+
+	if err != nil {
+		if callback != nil {
+			callback(
+				[]any{ map[string]any{
+					"success": false,
+					"errorCode": "INTERNAL_ERROR",
+				} },
+				nil,
+			);
+		}
+		return;
+	}
+
+	req, sig, err := createWithdrawalRequest(
+		session.wallet,
+		params.amount,
+		params.currency,
+		cfg.OnChain.ChainId,
+		nonce,
+		cfg,
+	);
+
+	saveWithdrawal := func (tx *sql.Tx) error {
+		return saveWithdrawalRequest(req, sig, tx);
+	}
+
+	newBalance, err := bankObj.WithdrawBalance(
+		session.wallet,
+		params.currency,
+		params.amount,
+		saveWithdrawal,
+	);
+
 	_, err = bankObj.WithdrawBalance(
 		session.wallet,
 		params.currency,
 		params.amount,
+		nil,
 	);
 
 	if err != nil {
@@ -365,7 +403,10 @@ func withdrawHandler(
 	if callback != nil {
 		callback(
 			[]any{ map[string]any{
-				"success": err == nil,
+				"success": true,
+				"newBalance": newBalance.String(),
+				"request": req,
+				"signature": sig,
 			} },
 			nil,
 		);
