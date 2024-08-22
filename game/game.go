@@ -249,7 +249,6 @@ func (game *Game) createNewGame() {
 	game.endTime = game.startTime.Add(game.duration);
 
 	time.AfterFunc(untilStart, game.handleGameStart);
-	time.AfterFunc(untilStart + game.duration, game.handleGameCrash);
 
 	game.logger.Log(logging.Entry{
 		Payload: Log{
@@ -315,6 +314,7 @@ func (game *Game) handleGameStart() {
 			game.handleCashOut(player.wallet, true);
 		}
 	};
+
 	for i := range(game.players) {
 		if !game.players[i].autoCashOut.Equal(decimal.Zero) {
 			autoCashOut, _ := game.players[i].autoCashOut.Float64();
@@ -322,6 +322,8 @@ func (game *Game) handleGameStart() {
 			game.players[i].timeOut = time.AfterFunc(timeOut, makeCallback(game.players[i]));
 		}
 	}
+
+	time.AfterFunc(game.duration, game.handleGameCrash);
 
 	game.Emit(EVENT_GAME_RUNNING, map[string]any{
 		"startTime": game.startTime.UnixMilli(),
