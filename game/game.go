@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"math"
 	"time"
+	"sync"
 
 	"errors"
 	"slices"
@@ -113,6 +114,7 @@ type Game struct {
 	startTime time.Time;
 	endTime time.Time;
 	duration time.Duration;
+	lock *sync.Mutex;
 };
 
 type CrashedGame struct {
@@ -169,6 +171,7 @@ func NewGame(
 		observers: make(map[socket.SocketId]*Observer),
 		players: make([]*Player, 0),
 		waiting: make([]*Player, 0),
+		lock: &sync.Mutex{},
 	}, nil;
 }
 
@@ -265,7 +268,17 @@ func (game *Game) createNewGame() {
 	});
 }
 
+func (game *Game) handleCreateNewGame() {
+	game.lock.Lock();
+	defer game.lock.Unlock();
+
+	game.createNewGame();
+}
+
 func (game *Game) handleGameStart() {
+	game.lock.Lock();
+	defer game.lock.Unlock();
+
 	game.logger.Log(logging.Entry{
 		Payload: Log{
 			"msg" : "Preparing to start game...",
@@ -331,6 +344,9 @@ func (game *Game) handleGameStart() {
 }
 
 func (game *Game) handleGameCrash() {
+	game.lock.Lock();
+	defer game.lock.Unlock();
+
 	game.logger.Log(logging.Entry{
 		Payload: Log{
 			"msg"   : "Crashing game...",
@@ -376,7 +392,7 @@ func (game *Game) handleGameCrash() {
 		"game": record,
 	});
 
-	time.AfterFunc(WAIT_TIME_SECS * time.Second, game.createNewGame);
+	time.AfterFunc(WAIT_TIME_SECS * time.Second, game.handleCreateNewGame);
 }
 
 func (game *Game) HandlePlaceBet(
@@ -386,6 +402,9 @@ func (game *Game) HandlePlaceBet(
 	betAmount decimal.Decimal,
 	autoCashOut decimal.Decimal,
 ) error {
+	game.lock.Lock();
+	defer game.lock.Unlock();
+
 	player := Player{
 		wallet: wallet,
 		betAmount: betAmount,
@@ -450,6 +469,9 @@ func (game *Game) HandlePlaceBet(
 }
 
 func (game *Game) HandleCancelBet(wallet string) error {
+	game.lock.Lock();
+	defer game.lock.Unlock();
+
 	playerIndex := slices.IndexFunc(game.waiting, func(p *Player) bool {
 		return p.wallet == wallet;
 	});
@@ -470,6 +492,9 @@ func (game *Game) HandleCashOut(wallet string) error {
 }
 
 func (game *Game) handleCashOut(wallet string, auto bool) error {
+	game.lock.Lock();
+	defer game.lock.Unlock();
+
 	if game.state != GAMESTATE_RUNNING {
 		return ErrWrongGameState;
 	}
@@ -556,6 +581,9 @@ func (game *Game) handleCashOut(wallet string, auto bool) error {
 }
 
 func (game *Game) HandleConnect(client *socket.Socket) {
+	game.lock.Lock();
+	defer game.lock.Unlock();
+
 	_, exists := game.observers[client.Id()];
 
 	if exists {
@@ -598,6 +626,9 @@ func (game *Game) HandleConnect(client *socket.Socket) {
 }
 
 func (game *Game) HandleLogin(client *socket.Socket, wallet string) {
+	game.lock.Lock();
+	defer game.lock.Unlock();
+
 	observer, exists := game.observers[client.Id()];
 
 	if !exists {
@@ -618,6 +649,9 @@ func (game *Game) HandleLogin(client *socket.Socket, wallet string) {
 }
 
 func (game *Game) HandleDisconnect(client *socket.Socket) {
+	game.lock.Lock();
+	defer game.lock.Unlock();
+
 	_, exists := game.observers[client.Id()];
 
 	if !exists {
