@@ -7,6 +7,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"strings"
+	"os"
 
 	"github.com/shopspring/decimal"
 
@@ -40,6 +42,8 @@ var types = apitypes.Types{
 	},
 }
 
+var privateKey = "";
+
 type Task struct {
 	taskType int8;
 	user string;
@@ -54,6 +58,20 @@ type WithdrawalRequest struct {
 	amount string;
 	nonce string;
 	tasks []Task;
+}
+
+func init() {
+	privateKey = os.Getenv("AGENT_PRIVATE_KEY");
+
+	if privateKey == "" {
+		log.Fatal("AGENT_PRIVATE_KEY not defined")
+	}
+
+	if strings.HasPrefix(privateKey, "0x") {
+		privateKey = privateKey[2:];
+	}
+
+	log.Fatal(privateKey);
 }
 
 func createWithdrawalRequest(
@@ -92,8 +110,7 @@ func createWithdrawalRequest(
 		Message:     message,
 	}
 
-	// addr = 0x5630f29Bd82793801446b3deF50B0Fd50F972252
-	privateKey, err := crypto.HexToECDSA("cbfc67bba0255709891f5feebc584462aa2966bbf60d2e000d6ff215cfe48610");
+	privateKey, err := crypto.HexToECDSA(privateKey);
 
 	if err != nil {
 		log.Fatal("Error loading private key: ", err);
